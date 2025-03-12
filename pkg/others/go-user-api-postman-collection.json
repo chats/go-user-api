@@ -1,0 +1,944 @@
+{
+    "info": {
+      "_postman_id": "e2f82e1c-f9b5-4f9e-8be0-e91ee02c8d01",
+      "name": "go-user-api",
+      "description": "A collection for testing the go-user-api microservice",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+      {
+        "key": "base_url",
+        "value": "http://localhost:8080/api/v1",
+        "type": "string"
+      },
+      {
+        "key": "access_token",
+        "value": "",
+        "type": "string"
+      },
+      {
+        "key": "user_id",
+        "value": "",
+        "type": "string"
+      },
+      {
+        "key": "role_id",
+        "value": "",
+        "type": "string"
+      },
+      {
+        "key": "permission_id",
+        "value": "",
+        "type": "string"
+      }
+    ],
+    "item": [
+      {
+        "name": "Health Check",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:8080/healthz",
+            "protocol": "http",
+            "host": [
+              "localhost"
+            ],
+            "port": "8080",
+            "path": [
+              "healthz"
+            ]
+          },
+          "description": "Check if API is up and running"
+        },
+        "response": []
+      },
+      {
+        "name": "Authentication",
+        "item": [
+          {
+            "name": "Login as Admin",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true) {",
+                    "    pm.collectionVariables.set(\"access_token\", jsonData.data.access_token);",
+                    "    pm.collectionVariables.set(\"user_id\", jsonData.data.user.id);",
+                    "    pm.test(\"Token received successfully\", function() {",
+                    "        pm.expect(jsonData.data.access_token).to.not.be.empty;",
+                    "    });",
+                    "} else {",
+                    "    pm.test(\"Login failed\", function() {",
+                    "        pm.expect(jsonData.success).to.be.true;",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"adminpassword\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/auth/login",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "auth",
+                  "login"
+                ]
+              },
+              "description": "Login as admin user to get a JWT token"
+            },
+            "response": []
+          },
+          {
+            "name": "Change Password",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"current_password\": \"adminpassword\",\n    \"new_password\": \"newpassword123\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/auth/change-password",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "auth",
+                  "change-password"
+                ]
+              },
+              "description": "Change the password of the current user"
+            },
+            "response": []
+          },
+          {
+            "name": "Reset Password (Admin)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true) {",
+                    "    pm.test(\"Password reset successfully\", function() {",
+                    "        pm.expect(jsonData.message).to.include(\"reset successfully\");",
+                    "        pm.expect(jsonData.new_password).to.not.be.empty;",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"user_id\": \"{{user_id}}\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/auth/reset-password",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "auth",
+                  "reset-password"
+                ]
+              },
+              "description": "Admin can reset password for any user"
+            },
+            "response": []
+          }
+        ],
+        "description": "Authentication-related endpoints"
+      },
+      {
+        "name": "Users",
+        "item": [
+          {
+            "name": "Get All Users",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true) {",
+                    "    pm.test(\"Users retrieved successfully\", function() {",
+                    "        pm.expect(jsonData.data.users).to.be.an('array');",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/users?page=1&page_size=10",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "users"
+                ],
+                "query": [
+                  {
+                    "key": "page",
+                    "value": "1"
+                  },
+                  {
+                    "key": "page_size",
+                    "value": "10"
+                  }
+                ]
+              },
+              "description": "Get all users with pagination"
+            },
+            "response": []
+          },
+          {
+            "name": "Get Current User (Me)",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/users/me",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "users",
+                  "me"
+                ]
+              },
+              "description": "Get the current user's profile"
+            },
+            "response": []
+          },
+          {
+            "name": "Get User by ID",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/users/{{user_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "users",
+                  "{{user_id}}"
+                ]
+              },
+              "description": "Get a specific user by ID"
+            },
+            "response": []
+          },
+          {
+            "name": "Create New User",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true) {",
+                    "    pm.collectionVariables.set(\"new_user_id\", jsonData.data.id);",
+                    "    pm.test(\"User created successfully\", function() {",
+                    "        pm.expect(jsonData.data.id).to.not.be.empty;",
+                    "        pm.expect(jsonData.data.username).to.equal(\"testuser\");",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"role_ids\": [\"role-id-here\"]\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/users",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "users"
+                ]
+              },
+              "description": "Create a new user"
+            },
+            "response": []
+          },
+          {
+            "name": "Update User",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "PUT",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"first_name\": \"Updated\",\n    \"last_name\": \"User\",\n    \"is_active\": true\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/users/{{user_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "users",
+                  "{{user_id}}"
+                ]
+              },
+              "description": "Update an existing user"
+            },
+            "response": []
+          },
+          {
+            "name": "Delete User",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "DELETE",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/users/{{user_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "users",
+                  "{{user_id}}"
+                ]
+              },
+              "description": "Delete a user"
+            },
+            "response": []
+          },
+          {
+            "name": "Get User Permissions",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/users/{{user_id}}/permissions",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "users",
+                  "{{user_id}}",
+                  "permissions"
+                ]
+              },
+              "description": "Get all permissions for a specific user"
+            },
+            "response": []
+          }
+        ],
+        "description": "User management endpoints"
+      },
+      {
+        "name": "Roles",
+        "item": [
+          {
+            "name": "Get All Roles",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true && jsonData.data.length > 0) {",
+                    "    pm.collectionVariables.set(\"role_id\", jsonData.data[0].id);",
+                    "    pm.test(\"Roles retrieved successfully\", function() {",
+                    "        pm.expect(jsonData.data).to.be.an('array');",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/roles",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "roles"
+                ]
+              },
+              "description": "Get all roles"
+            },
+            "response": []
+          },
+          {
+            "name": "Get Role by ID",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/roles/{{role_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "roles",
+                  "{{role_id}}"
+                ]
+              },
+              "description": "Get a specific role by ID"
+            },
+            "response": []
+          },
+          {
+            "name": "Create New Role",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true) {",
+                    "    pm.collectionVariables.set(\"new_role_id\", jsonData.data.id);",
+                    "    pm.test(\"Role created successfully\", function() {",
+                    "        pm.expect(jsonData.data.id).to.not.be.empty;",
+                    "        pm.expect(jsonData.data.name).to.equal(\"developer\");",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"name\": \"developer\",\n    \"description\": \"Developer role with limited access\",\n    \"permission_ids\": []\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/roles",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "roles"
+                ]
+              },
+              "description": "Create a new role"
+            },
+            "response": []
+          },
+          {
+            "name": "Update Role",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "PUT",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"description\": \"Updated description for this role\",\n    \"permission_ids\": [\"permission-id-here\"]\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/roles/{{role_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "roles",
+                  "{{role_id}}"
+                ]
+              },
+              "description": "Update an existing role"
+            },
+            "response": []
+          },
+          {
+            "name": "Delete Role",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "DELETE",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/roles/{{role_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "roles",
+                  "{{role_id}}"
+                ]
+              },
+              "description": "Delete a role"
+            },
+            "response": []
+          },
+          {
+            "name": "Get Role Permissions",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/roles/{{role_id}}/permissions",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "roles",
+                  "{{role_id}}",
+                  "permissions"
+                ]
+              },
+              "description": "Get all permissions for a specific role"
+            },
+            "response": []
+          }
+        ],
+        "description": "Role management endpoints"
+      },
+      {
+        "name": "Permissions",
+        "item": [
+          {
+            "name": "Get All Permissions",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true && jsonData.data.length > 0) {",
+                    "    pm.collectionVariables.set(\"permission_id\", jsonData.data[0].id);",
+                    "    pm.test(\"Permissions retrieved successfully\", function() {",
+                    "        pm.expect(jsonData.data).to.be.an('array');",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/permissions",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "permissions"
+                ]
+              },
+              "description": "Get all permissions"
+            },
+            "response": []
+          },
+          {
+            "name": "Get Permissions by Resource",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/permissions?resource=user",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "permissions"
+                ],
+                "query": [
+                  {
+                    "key": "resource",
+                    "value": "user"
+                  }
+                ]
+              },
+              "description": "Get permissions filtered by resource"
+            },
+            "response": []
+          },
+          {
+            "name": "Get Permission by ID",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/permissions/{{permission_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "permissions",
+                  "{{permission_id}}"
+                ]
+              },
+              "description": "Get a specific permission by ID"
+            },
+            "response": []
+          },
+          {
+            "name": "Create New Permission",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = JSON.parse(responseBody);",
+                    "if (jsonData.success === true) {",
+                    "    pm.collectionVariables.set(\"new_permission_id\", jsonData.data.id);",
+                    "    pm.test(\"Permission created successfully\", function() {",
+                    "        pm.expect(jsonData.data.id).to.not.be.empty;",
+                    "        pm.expect(jsonData.data.name).to.equal(\"report:read\");",
+                    "    });",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"name\": \"report:read\",\n    \"description\": \"Permission to read reports\",\n    \"resource\": \"report\",\n    \"action\": \"read\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/permissions",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "permissions"
+                ]
+              },
+              "description": "Create a new permission"
+            },
+            "response": []
+          },
+          {
+            "name": "Update Permission",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "PUT",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"description\": \"Updated description for this permission\"\n}"
+              },
+              "url": {
+                "raw": "{{base_url}}/permissions/{{permission_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "permissions",
+                  "{{permission_id}}"
+                ]
+              },
+              "description": "Update an existing permission"
+            },
+            "response": []
+          },
+          {
+            "name": "Delete Permission",
+            "request": {
+              "auth": {
+                "type": "bearer",
+                "bearer": [
+                  {
+                    "key": "token",
+                    "value": "{{access_token}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "DELETE",
+              "header": [],
+              "url": {
+                "raw": "{{base_url}}/permissions/{{permission_id}}",
+                "host": [
+                  "{{base_url}}"
+                ],
+                "path": [
+                  "permissions",
+                  "{{permission_id}}"
+                ]
+              },
+              "description": "Delete a permission"
+            },
+            "response": []
+          }
+        ],
+        "description": "Permission management endpoints"
+      }
+    ]
+  }

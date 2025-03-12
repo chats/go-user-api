@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/chats/go-user-api/api/grpc/pb";
+
+import "google/protobuf/timestamp.proto";
+
+service UserService {
+  // GetUser retrieves a user profile by ID
+  rpc GetUser(GetUserRequest) returns (UserProfile) {}
+  
+  // GetUserPermissions retrieves all permissions for a user
+  rpc GetUserPermissions(GetUserRequest) returns (UserPermissionsResponse) {}
+  
+  // ValidateToken validates a JWT token and returns user info
+  rpc ValidateToken(ValidateTokenRequest) returns (TokenValidationResponse) {}
+  
+  // HasPermission checks if a user has a specific permission
+  rpc HasPermission(HasPermissionRequest) returns (HasPermissionResponse) {}
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message UserProfile {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  bool is_active = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  repeated Role roles = 9;
+}
+
+message Role {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message Permission {
+  string id = 1;
+  string name = 2;
+  string resource = 3;
+  string action = 4;
+  string description = 5;
+}
+
+message UserPermissionsResponse {
+  repeated Permission permissions = 1;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message TokenValidationResponse {
+  bool is_valid = 1;
+  string user_id = 2;
+  string username = 3;
+  repeated string roles = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  Error error = 6;
+}
+
+message HasPermissionRequest {
+  string user_id = 1;
+  string resource = 2;
+  string action = 3;
+}
+
+message HasPermissionResponse {
+  bool has_permission = 1;
+  Error error = 2;
+}
+
+message Error {
+  string code = 1;
+  string message = 2;
+}
