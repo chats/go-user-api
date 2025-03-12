@@ -103,7 +103,7 @@ docker-run: ## Run docker container
 # Start all services with docker-compose
 docker-up: ## Start all services with docker-compose
 	@echo "Starting all services with docker-compose..."
-	@$(DOCKER_COMPOSE) up -d
+	@$(DOCKER_COMPOSE) up
 
 # Stop all services with docker-compose
 docker-down: ## Stop all services with docker-compose

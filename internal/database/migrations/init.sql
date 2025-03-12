@@ -105,7 +105,7 @@ ON CONFLICT DO NOTHING;
 
 -- Create default admin user (password is 'adminpassword')
 INSERT INTO users (username, email, password, first_name, last_name) 
-VALUES ('admin', 'admin@example.com', '$2a$10$WY0AEJESgw6QU.NqvyCP3.DBaIwjUTXUUOejAUAt1ipDHu5qW37XC', 'Admin', 'User')
+VALUES ('admin', 'admin@example.com', '$2a$10$FPS/DKJWlcHvU1fJuDEYDO0IXNoXQw./hCBlh90AogplwklD7PylC', 'Admin', 'User')
 ON CONFLICT (username) DO NOTHING;
 
 -- Assign admin role to admin user
