@@ -1,6 +1,6 @@
 # go-user-api
 
-A microservice for user authentication and authorization with JWT, roles, and permissions management.
+A sample microservice for user authentication and authorization with JWT, roles, and permissions management.
 
 ## Features
 
@@ -47,7 +47,7 @@ This will start the API service along with PostgreSQL, Redis, RabbitMQ, Kafka, a
 
 If you prefer to run the project manually:
 
-1. Install Go 1.19 or higher
+1. Install Go 1.23 or higher
 2. Clone the repository
 3. Install dependencies
 4. Set up PostgreSQL, Redis, RabbitMQ, and Kafka
