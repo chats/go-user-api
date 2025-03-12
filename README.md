@@ -19,7 +19,7 @@ A sample microservice for user authentication and authorization with JWT, roles,
 
 ## Requirements
 
-- Go 1.19 or higher
+- Go 1.23 or higher
 - PostgreSQL
 - Redis
 - RabbitMQ
