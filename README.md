@@ -1,6 +1,6 @@
 # go-user-api
 
-A microservice for user authentication and authorization with JWT, roles, and permissions management.
+A sample microservice for user authentication and authorization with JWT, roles, and permissions management.
 
 ## Features
 
@@ -16,7 +16,7 @@ A microservice for user authentication and authorization with JWT, roles, and pe
 
 ## Requirements
 
-- Go 1.19 or higher
+- Go 1.23 or higher
 - PostgreSQL
 - Redis
 - Jaeger (optional, for tracing)
@@ -42,7 +42,7 @@ This will start the API service along with PostgreSQL, Redis, and Jaeger.
 
 If you prefer to run the project manually:
 
-1. Install Go 1.19 or higher
+1. Install Go 1.23 or higher
 2. Clone the repository
 3. Install dependencies
 4. Set up PostgreSQL, Redis
