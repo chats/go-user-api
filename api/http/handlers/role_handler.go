@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/chats/go-user-api/internal/messaging/kafka"
 	"github.com/chats/go-user-api/internal/models"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/chats/go-user-api/internal/tracing"
@@ -12,35 +11,22 @@ import (
 
 // RoleHandler handles role-related HTTP requests
 type RoleHandler struct {
-	roleService   *services.RoleService
-	kafkaProducer *kafka.Producer
-	tracer        *tracing.Tracer
+	roleService *services.RoleService
+	tracer      *tracing.Tracer
 }
 
 // NewRoleHandler creates a new role handler
 func NewRoleHandler(
 	roleService *services.RoleService,
-	kafkaProducer *kafka.Producer,
 	tracer *tracing.Tracer,
 ) *RoleHandler {
 	return &RoleHandler{
-		roleService:   roleService,
-		kafkaProducer: kafkaProducer,
-		tracer:        tracer,
+		roleService: roleService,
+		tracer:      tracer,
 	}
 }
 
 // GetRoles retrieves all roles
-// @Summary Get all roles
-// @Description Get all roles
-// @Tags roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Router /roles [get]
 func (h *RoleHandler) GetRoles(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "RoleHandler.GetRoles")
 	defer span.End()
@@ -59,10 +45,6 @@ func (h *RoleHandler) GetRoles(c *fiber.Ctx) error {
 		})
 	}
 
-	// Log activity
-	userID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogActivity(ctx, userID, c.Get("X-Request-ID"), "get_roles", nil)
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"data":    roles,
@@ -70,19 +52,6 @@ func (h *RoleHandler) GetRoles(c *fiber.Ctx) error {
 }
 
 // GetRole retrieves a role by ID
-// @Summary Get role by ID
-// @Description Get role by ID
-// @Tags roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "Role ID"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /roles/{id} [get]
 func (h *RoleHandler) GetRole(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "RoleHandler.GetRole")
 	defer span.End()
@@ -116,12 +85,6 @@ func (h *RoleHandler) GetRole(c *fiber.Ctx) error {
 		})
 	}
 
-	// Log activity
-	userID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogActivity(ctx, userID, c.Get("X-Request-ID"), "get_role", map[string]interface{}{
-		"role_id": id,
-	})
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"data":    role,
@@ -129,18 +92,6 @@ func (h *RoleHandler) GetRole(c *fiber.Ctx) error {
 }
 
 // CreateRole creates a new role
-// @Summary Create role
-// @Description Create a new role
-// @Tags roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body models.RoleCreateRequest true "Role creation request"
-// @Success 201 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Router /roles [post]
 func (h *RoleHandler) CreateRole(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "RoleHandler.CreateRole")
 	defer span.End()
@@ -185,11 +136,6 @@ func (h *RoleHandler) CreateRole(c *fiber.Ctx) error {
 
 	// Log activity
 	adminID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogAudit(ctx, adminID, c.Get("X-Request-ID"), "role", "create", map[string]interface{}{
-		"role_name": request.Name,
-		"role_id":   role.ID.String(),
-	})
-
 	log.Info().
 		Str("admin_id", adminID).
 		Str("role_name", request.Name).
@@ -203,20 +149,6 @@ func (h *RoleHandler) CreateRole(c *fiber.Ctx) error {
 }
 
 // UpdateRole updates a role
-// @Summary Update role
-// @Description Update an existing role
-// @Tags roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "Role ID"
-// @Param request body models.RoleUpdateRequest true "Role update request"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /roles/{id} [put]
 func (h *RoleHandler) UpdateRole(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "RoleHandler.UpdateRole")
 	defer span.End()
@@ -262,10 +194,6 @@ func (h *RoleHandler) UpdateRole(c *fiber.Ctx) error {
 
 	// Log activity
 	adminID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogAudit(ctx, adminID, c.Get("X-Request-ID"), "role", "update", map[string]interface{}{
-		"role_id": id,
-	})
-
 	log.Info().
 		Str("admin_id", adminID).
 		Str("role_id", id).
@@ -278,19 +206,6 @@ func (h *RoleHandler) UpdateRole(c *fiber.Ctx) error {
 }
 
 // DeleteRole deletes a role
-// @Summary Delete role
-// @Description Delete a role
-// @Tags roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "Role ID"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /roles/{id} [delete]
 func (h *RoleHandler) DeleteRole(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "RoleHandler.DeleteRole")
 	defer span.End()
@@ -342,11 +257,6 @@ func (h *RoleHandler) DeleteRole(c *fiber.Ctx) error {
 
 	// Log activity
 	adminID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogAudit(ctx, adminID, c.Get("X-Request-ID"), "role", "delete", map[string]interface{}{
-		"role_id":   id,
-		"role_name": role.Name,
-	})
-
 	log.Info().
 		Str("admin_id", adminID).
 		Str("role_id", id).
@@ -360,19 +270,6 @@ func (h *RoleHandler) DeleteRole(c *fiber.Ctx) error {
 }
 
 // GetRolePermissions retrieves permissions for a role
-// @Summary Get role permissions
-// @Description Get all permissions for a role
-// @Tags roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "Role ID"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /roles/{id}/permissions [get]
 func (h *RoleHandler) GetRolePermissions(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "RoleHandler.GetRolePermissions")
 	defer span.End()
@@ -421,12 +318,6 @@ func (h *RoleHandler) GetRolePermissions(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
-
-	// Log activity
-	userID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogActivity(ctx, userID, c.Get("X-Request-ID"), "get_role_permissions", map[string]interface{}{
-		"role_id": id,
-	})
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

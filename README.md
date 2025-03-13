@@ -9,12 +9,9 @@ A microservice for user authentication and authorization with JWT, roles, and pe
 - Permission management
 - RESTful HTTP API
 - gRPC API for user profile
-- RabbitMQ for job queue (email sending)
-- Distributed logging with Kafka
 - Distributed tracing with Jaeger
 - Redis caching for database queries
 - PostgreSQL database
-- Swagger documentation
 - Docker and Docker Compose support
 
 ## Requirements
@@ -22,8 +19,6 @@ A microservice for user authentication and authorization with JWT, roles, and pe
 - Go 1.19 or higher
 - PostgreSQL
 - Redis
-- RabbitMQ
-- Kafka
 - Jaeger (optional, for tracing)
 
 ## Getting Started
@@ -41,7 +36,7 @@ cd go-user-api
 docker-compose up -d
 ```
 
-This will start the API service along with PostgreSQL, Redis, RabbitMQ, Kafka, and Jaeger.
+This will start the API service along with PostgreSQL, Redis, and Jaeger.
 
 ### Manual Setup
 
@@ -50,7 +45,7 @@ If you prefer to run the project manually:
 1. Install Go 1.19 or higher
 2. Clone the repository
 3. Install dependencies
-4. Set up PostgreSQL, Redis, RabbitMQ, and Kafka
+4. Set up PostgreSQL, Redis
 5. Configure environment variables
 6. Run the application
 
@@ -68,10 +63,6 @@ cp .env.example .env
 # Run the application
 go run cmd/server/main.go
 ```
-
-## API Documentation
-
-The API documentation is available at `/swagger/` when the server is running.
 
 ## API Endpoints
 
@@ -140,16 +131,6 @@ winget install protobuf
 protoc --go_out=. --go_opt=paths=source_relative \
     --go-grpc_out=. --go-grpc_opt=paths=source_relative \
     api/grpc/proto/user.proto
-```
-
-### Generating Swagger Documentation
-
-```bash
-# Install swag
-go install github.com/swaggo/swag/cmd/swag@latest
-
-# Generate swagger docs
-swag init -g cmd/server/main.go -o docs
 ```
 
 ## License

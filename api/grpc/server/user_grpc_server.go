@@ -8,7 +8,6 @@ import (
 
 	"github.com/chats/go-user-api/api/grpc/pb"
 	"github.com/chats/go-user-api/config"
-	"github.com/chats/go-user-api/internal/messaging/kafka"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/chats/go-user-api/internal/tracing"
 	"github.com/chats/go-user-api/internal/utils"
@@ -22,27 +21,24 @@ import (
 // UserGRPCServer implements the UserService gRPC service
 type UserGRPCServer struct {
 	pb.UnimplementedUserServiceServer
-	userService   *services.UserService
-	authService   *services.AuthService
-	kafkaProducer *kafka.Producer
-	tracer        *tracing.Tracer
-	config        *config.Config
+	userService *services.UserService
+	authService *services.AuthService
+	tracer      *tracing.Tracer
+	config      *config.Config
 }
 
 // NewUserGRPCServer creates a new user gRPC server
 func NewUserGRPCServer(
 	userService *services.UserService,
 	authService *services.AuthService,
-	kafkaProducer *kafka.Producer,
 	tracer *tracing.Tracer,
 	config *config.Config,
 ) *UserGRPCServer {
 	return &UserGRPCServer{
-		userService:   userService,
-		authService:   authService,
-		kafkaProducer: kafkaProducer,
-		tracer:        tracer,
-		config:        config,
+		userService: userService,
+		authService: authService,
+		tracer:      tracer,
+		config:      config,
 	}
 }
 
@@ -89,10 +85,6 @@ func (s *UserGRPCServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*
 	}
 
 	// Log activity
-	s.kafkaProducer.LogActivity(ctx, "", "grpc", "get_user", map[string]interface{}{
-		"target_user_id": req.UserId,
-	})
-
 	return &pb.UserProfile{
 		Id:        user.ID.String(),
 		Username:  user.Username,
@@ -151,11 +143,6 @@ func (s *UserGRPCServer) GetUserPermissions(ctx context.Context, req *pb.GetUser
 		}
 	}
 
-	// Log activity
-	s.kafkaProducer.LogActivity(ctx, "", "grpc", "get_user_permissions", map[string]interface{}{
-		"target_user_id": req.UserId,
-	})
-
 	return &pb.UserPermissionsResponse{
 		Permissions: protoPermissions,
 	}, nil
@@ -194,9 +181,6 @@ func (s *UserGRPCServer) ValidateToken(ctx context.Context, req *pb.ValidateToke
 		attribute.String("user_id", claims.UserID),
 		attribute.String("username", claims.Username),
 	)
-
-	// Log activity
-	s.kafkaProducer.LogActivity(ctx, claims.UserID, "grpc", "validate_token", nil)
 
 	// Return validation result
 	return &pb.TokenValidationResponse{
@@ -250,13 +234,6 @@ func (s *UserGRPCServer) HasPermission(ctx context.Context, req *pb.HasPermissio
 			},
 		}, nil
 	}
-
-	// Log activity
-	s.kafkaProducer.LogActivity(ctx, req.UserId, "grpc", "check_permission", map[string]interface{}{
-		"resource":       req.Resource,
-		"action":         req.Action,
-		"has_permission": hasPermission,
-	})
 
 	return &pb.HasPermissionResponse{
 		HasPermission: hasPermission,

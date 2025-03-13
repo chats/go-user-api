@@ -6,7 +6,6 @@ import (
 	"github.com/chats/go-user-api/config"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/swagger"
 )
 
 // SetupRoutes sets up all HTTP routes for the application
@@ -19,9 +18,6 @@ func SetupRoutes(
 	permissionHandler *handlers.PermissionHandler,
 	authService *services.AuthService,
 ) {
-	// Swagger documentation
-	app.Get("/swagger/*", swagger.HandlerDefault)
-
 	// Health check
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{

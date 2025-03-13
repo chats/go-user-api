@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"context"
-
-	"github.com/chats/go-user-api/internal/messaging/kafka"
 	"github.com/chats/go-user-api/internal/models"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/chats/go-user-api/internal/tracing"
@@ -14,41 +11,25 @@ import (
 
 // AuthHandler handles authentication-related HTTP requests
 type AuthHandler struct {
-	authService   *services.AuthService
-	userService   *services.UserService
-	mailService   *services.MailService
-	kafkaProducer *kafka.Producer
-	tracer        *tracing.Tracer
+	authService *services.AuthService
+	userService *services.UserService
+	tracer      *tracing.Tracer
 }
 
 // NewAuthHandler creates a new auth handler
 func NewAuthHandler(
 	authService *services.AuthService,
 	userService *services.UserService,
-	mailService *services.MailService,
-	kafkaProducer *kafka.Producer,
 	tracer *tracing.Tracer,
 ) *AuthHandler {
 	return &AuthHandler{
-		authService:   authService,
-		userService:   userService,
-		mailService:   mailService,
-		kafkaProducer: kafkaProducer,
-		tracer:        tracer,
+		authService: authService,
+		userService: userService,
+		tracer:      tracer,
 	}
 }
 
 // Login handles user login
-// @Summary User login
-// @Description Login with username and password to get JWT token
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body models.LoginRequest true "Login credentials"
-// @Success 200 {object} models.LoginResponse
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "AuthHandler.Login")
 	defer span.End()
@@ -84,12 +65,6 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 			Str("username", request.Username).
 			Msg("Login failed")
 
-		// Log failed login attempt
-		h.kafkaProducer.LogActivity(ctx, "", c.Get("X-Request-ID"), "login_failed", map[string]interface{}{
-			"username": request.Username,
-			"ip":       c.IP(),
-		})
-
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": false,
 			"message": "Invalid username or password",
@@ -97,11 +72,6 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	// Log successful login
-	h.kafkaProducer.LogActivity(ctx, response.User.ID.String(), c.Get("X-Request-ID"), "login_successful", map[string]interface{}{
-		"username": request.Username,
-		"ip":       c.IP(),
-	})
-
 	log.Info().
 		Str("username", request.Username).
 		Str("user_id", response.User.ID.String()).
@@ -114,17 +84,6 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 }
 
 // ChangePassword handles password change
-// @Summary Change password
-// @Description Change user password
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body object true "Change password request"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Router /auth/change-password [post]
 func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "AuthHandler.ChangePassword")
 	defer span.End()
@@ -181,11 +140,6 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 		})
 	}
 
-	// Log password change
-	h.kafkaProducer.LogActivity(ctx, userID, c.Get("X-Request-ID"), "password_changed", map[string]interface{}{
-		"ip": c.IP(),
-	})
-
 	log.Info().
 		Str("user_id", userID).
 		Msg("Password changed successfully")
@@ -197,18 +151,6 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 }
 
 // ResetPassword handles password reset (admin only)
-// @Summary Reset password
-// @Description Reset user password (admin only)
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body object true "Reset password request"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Router /auth/reset-password [post]
 func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "AuthHandler.ResetPassword")
 	defer span.End()
@@ -259,29 +201,24 @@ func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
 	}
 
 	// Get user to send email
-	user, err := h.userService.GetUserByID(ctx, request.UserID)
-	if err == nil && user != nil {
-		// Send password reset email
-		go func() {
-			mailErr := h.mailService.SendPasswordResetEmail(
-				context.Background(),
-				user.Email,
-				user.Username,
-				newPassword,
-			)
-			if mailErr != nil {
-				log.Error().Err(mailErr).
-					Str("user_id", user.ID.String()).
-					Msg("Failed to send password reset email")
-			}
-		}()
-	}
-
-	// Log password reset
-	h.kafkaProducer.LogAudit(ctx, adminID, c.Get("X-Request-ID"), "user", "reset_password", map[string]interface{}{
-		"target_user_id": request.UserID,
-		"ip":             c.IP(),
-	})
+	/*
+		user, err := h.userService.GetUserByID(ctx, request.UserID)
+		if err == nil && user != nil {
+			// Send password reset email
+			go func() {
+				mailErr := h.mailService.SendPasswordResetEmail(
+					context.Background(),
+					user.Email,
+					user.Username,
+					newPassword,
+				)
+				if mailErr != nil {
+					log.Error().Err(mailErr).
+						Str("user_id", user.ID.String()).
+						Msg("Failed to send password reset email")
+				}
+			}()
+		}*/
 
 	log.Info().
 		Str("admin_id", adminID).

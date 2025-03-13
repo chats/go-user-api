@@ -36,13 +36,6 @@ type Config struct {
 	RedisDB       int
 	RedisCacheTTL int
 
-	// RabbitMQ
-	RabbitMQURL string
-
-	// Kafka
-	KafkaBrokers []string
-	KafkaTopic   string
-
 	// Tracing
 	JaegerEndpoint string
 }
@@ -82,13 +75,6 @@ func LoadConfig() (*Config, error) {
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisDB:       redisDB,
 		RedisCacheTTL: redisCacheTTL,
-
-		// RabbitMQ
-		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
-
-		// Kafka
-		KafkaBrokers: []string{getEnv("KAFKA_BROKERS", "localhost:9092")},
-		KafkaTopic:   getEnv("KAFKA_TOPIC", "user-logs"),
 
 		// Tracing
 		JaegerEndpoint: getEnv("JAEGER_ENDPOINT", "http://localhost:14268/api/traces"),

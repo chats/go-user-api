@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"context"
-
-	"github.com/chats/go-user-api/internal/messaging/kafka"
 	"github.com/chats/go-user-api/internal/models"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/chats/go-user-api/internal/tracing"
@@ -14,40 +11,22 @@ import (
 
 // UserHandler handles user-related HTTP requests
 type UserHandler struct {
-	userService   *services.UserService
-	mailService   *services.MailService
-	kafkaProducer *kafka.Producer
-	tracer        *tracing.Tracer
+	userService *services.UserService
+	tracer      *tracing.Tracer
 }
 
 // NewUserHandler creates a new user handler
 func NewUserHandler(
 	userService *services.UserService,
-	mailService *services.MailService,
-	kafkaProducer *kafka.Producer,
 	tracer *tracing.Tracer,
 ) *UserHandler {
 	return &UserHandler{
-		userService:   userService,
-		mailService:   mailService,
-		kafkaProducer: kafkaProducer,
-		tracer:        tracer,
+		userService: userService,
+		tracer:      tracer,
 	}
 }
 
 // GetUsers retrieves all users with pagination
-// @Summary Get all users
-// @Description Get all users with pagination
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number"
-// @Param page_size query int false "Page size"
-// @Success 200 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Router /users [get]
 func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "UserHandler.GetUsers")
 	defer span.End()
@@ -85,13 +64,6 @@ func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 		attribute.Int("total_pages", totalPages),
 	)
 
-	// Log activity
-	userID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogActivity(ctx, userID, c.Get("X-Request-ID"), "get_users", map[string]interface{}{
-		"page":      page,
-		"page_size": pageSize,
-	})
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"data": fiber.Map{
@@ -107,19 +79,6 @@ func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 }
 
 // GetUser retrieves a user by ID
-// @Summary Get user by ID
-// @Description Get user by ID
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "User ID"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /users/{id} [get]
 func (h *UserHandler) GetUser(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "UserHandler.GetUser")
 	defer span.End()
@@ -153,12 +112,6 @@ func (h *UserHandler) GetUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Log activity
-	requestUserID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogActivity(ctx, requestUserID, c.Get("X-Request-ID"), "get_user", map[string]interface{}{
-		"target_user_id": id,
-	})
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"data":    user,
@@ -166,15 +119,6 @@ func (h *UserHandler) GetUser(c *fiber.Ctx) error {
 }
 
 // GetMe retrieves the current user information
-// @Summary Get current user
-// @Description Get the current user's information
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Router /users/me [get]
 func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "UserHandler.GetMe")
 	defer span.End()
@@ -212,9 +156,6 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 			Msg("Failed to get user permissions")
 	}
 
-	// Log activity
-	h.kafkaProducer.LogActivity(ctx, userID, c.Get("X-Request-ID"), "get_profile", nil)
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"data": fiber.Map{
@@ -225,18 +166,6 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 }
 
 // CreateUser creates a new user
-// @Summary Create user
-// @Description Create a new user
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body models.UserCreateRequest true "User creation request"
-// @Success 201 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Router /users [post]
 func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "UserHandler.CreateUser")
 	defer span.End()
@@ -281,28 +210,8 @@ func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Send welcome email in background
-	go func() {
-		mailErr := h.mailService.SendWelcomeEmail(
-			context.Background(),
-			user.Email,
-			user.Username,
-			user.FirstName,
-		)
-		if mailErr != nil {
-			log.Error().Err(mailErr).
-				Str("user_id", user.ID.String()).
-				Msg("Failed to send welcome email")
-		}
-	}()
-
 	// Log activity
 	adminID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogAudit(ctx, adminID, c.Get("X-Request-ID"), "user", "create", map[string]interface{}{
-		"username":       request.Username,
-		"target_user_id": user.ID.String(),
-	})
-
 	log.Info().
 		Str("admin_id", adminID).
 		Str("username", request.Username).
@@ -316,20 +225,6 @@ func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 }
 
 // UpdateUser updates a user
-// @Summary Update user
-// @Description Update an existing user
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "User ID"
-// @Param request body models.UserUpdateRequest true "User update request"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /users/{id} [put]
 func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "UserHandler.UpdateUser")
 	defer span.End()
@@ -375,10 +270,6 @@ func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
 
 	// Log activity
 	adminID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogAudit(ctx, adminID, c.Get("X-Request-ID"), "user", "update", map[string]interface{}{
-		"target_user_id": id,
-	})
-
 	log.Info().
 		Str("admin_id", adminID).
 		Str("user_id", id).
@@ -391,19 +282,6 @@ func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
 }
 
 // DeleteUser deletes a user
-// @Summary Delete user
-// @Description Delete a user
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "User ID"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /users/{id} [delete]
 func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "UserHandler.DeleteUser")
 	defer span.End()
@@ -455,11 +333,6 @@ func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
 
 	// Log activity
 	adminID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogAudit(ctx, adminID, c.Get("X-Request-ID"), "user", "delete", map[string]interface{}{
-		"target_user_id": id,
-		"username":       user.Username,
-	})
-
 	log.Info().
 		Str("admin_id", adminID).
 		Str("user_id", id).
@@ -473,19 +346,6 @@ func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
 }
 
 // GetUserPermissions retrieves permissions for a user
-// @Summary Get user permissions
-// @Description Get all permissions for a user
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "User ID"
-// @Success 200 {object} fiber.Map
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
-// @Failure 403 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
-// @Router /users/{id}/permissions [get]
 func (h *UserHandler) GetUserPermissions(c *fiber.Ctx) error {
 	ctx, span := h.tracer.StartSpan(c.Context(), "UserHandler.GetUserPermissions")
 	defer span.End()
@@ -534,12 +394,6 @@ func (h *UserHandler) GetUserPermissions(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
-
-	// Log activity
-	adminID, _ := c.Locals("userID").(string)
-	h.kafkaProducer.LogActivity(ctx, adminID, c.Get("X-Request-ID"), "get_user_permissions", map[string]interface{}{
-		"target_user_id": id,
-	})
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

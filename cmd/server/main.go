@@ -17,8 +17,6 @@ import (
 	"github.com/chats/go-user-api/internal/cache"
 	"github.com/chats/go-user-api/internal/database"
 	"github.com/chats/go-user-api/internal/logger"
-	"github.com/chats/go-user-api/internal/messaging/kafka"
-	"github.com/chats/go-user-api/internal/messaging/rabbitmq"
 	"github.com/chats/go-user-api/internal/repositories"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/chats/go-user-api/internal/tracing"
@@ -94,46 +92,6 @@ func main() {
 		}
 	}()
 
-	// Initialize Kafka producer with retries
-	var kafkaProducer *kafka.Producer
-	for i := 0; i < serviceConnectRetries; i++ {
-		kafkaProducer, err = kafka.NewProducer(cfg)
-		if err == nil {
-			break
-		}
-		log.Warn().Err(err).Int("attempt", i+1).Int("maxAttempts", serviceConnectRetries).
-			Msg("Failed to create Kafka producer, retrying...")
-		time.Sleep(serviceRetryInterval)
-	}
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to create Kafka producer after multiple attempts, continuing without distributed logging")
-	}
-	defer func() {
-		if kafkaProducer != nil {
-			kafkaProducer.Close()
-		}
-	}()
-
-	// Initialize RabbitMQ job queue with retries
-	var jobQueue *rabbitmq.JobQueue
-	for i := 0; i < serviceConnectRetries; i++ {
-		jobQueue, err = rabbitmq.NewJobQueue(cfg)
-		if err == nil {
-			break
-		}
-		log.Warn().Err(err).Int("attempt", i+1).Int("maxAttempts", serviceConnectRetries).
-			Msg("Failed to connect to RabbitMQ, retrying...")
-		time.Sleep(serviceRetryInterval)
-	}
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to connect to RabbitMQ after multiple attempts, continuing without job queue")
-	}
-	defer func() {
-		if jobQueue != nil {
-			jobQueue.Close()
-		}
-	}()
-
 	// Initialize tracer
 	tracer, err := tracing.NewTracer(cfg)
 	if err != nil {
@@ -155,16 +113,15 @@ func main() {
 	userService := services.NewUserService(userRepo, roleRepo)
 	roleService := services.NewRoleService(roleRepo, permissionRepo)
 	permissionService := services.NewPermissionService(permissionRepo)
-	mailService := services.NewMailService(jobQueue)
 
 	// Initialize HTTP handlers
-	authHandler := handlers.NewAuthHandler(authService, userService, mailService, kafkaProducer, tracer)
-	userHandler := handlers.NewUserHandler(userService, mailService, kafkaProducer, tracer)
-	roleHandler := handlers.NewRoleHandler(roleService, kafkaProducer, tracer)
-	permissionHandler := handlers.NewPermissionHandler(permissionService, kafkaProducer, tracer)
+	authHandler := handlers.NewAuthHandler(authService, userService, tracer)
+	userHandler := handlers.NewUserHandler(userService, tracer)
+	roleHandler := handlers.NewRoleHandler(roleService, tracer)
+	permissionHandler := handlers.NewPermissionHandler(permissionService, tracer)
 
 	// Initialize gRPC server
-	userGRPCServer := grpcserver.NewUserGRPCServer(userService, authService, kafkaProducer, tracer, cfg)
+	userGRPCServer := grpcserver.NewUserGRPCServer(userService, authService, tracer, cfg)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -214,19 +171,6 @@ func main() {
 
 	// Create an explicit gRPC server variable for proper shutdown
 	var grpcServer *grpc.Server
-
-	// Start email processor in background with cancellation context
-	emailProcessorDone := make(chan struct{})
-	go func() {
-		defer close(emailProcessorDone)
-		if jobQueue != nil {
-			log.Info().Msg("Starting email processor...")
-			err := mailService.ProcessEmails(ctx)
-			if err != nil && err != context.Canceled {
-				log.Error().Err(err).Msg("Email processor failed")
-			}
-		}
-	}()
 
 	// Set up signal handling for graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -344,13 +288,6 @@ func main() {
 		log.Debug().Msg("gRPC server shutdown done")
 	case <-shutdownCtx.Done():
 		log.Warn().Msg("gRPC server shutdown timed out")
-	}
-
-	select {
-	case <-emailProcessorDone:
-		log.Debug().Msg("Email processor shutdown done")
-	case <-shutdownCtx.Done():
-		log.Warn().Msg("Email processor shutdown timed out")
 	}
 
 	// Final cleanup and exit

@@ -1,4 +1,4 @@
-.PHONY: build run clean test test-coverage lint lint-fix docker-build docker-run proto swagger help
+.PHONY: build run clean test test-coverage lint lint-fix docker-build docker-run proto help
 
 # Variables
 APP_NAME = go-user-api
@@ -59,7 +59,6 @@ test-coverage: ## Run tests with coverage
 deps: ## Install dependencies
 	@echo "Installing dependencies..."
 	@$(GOMOD) download
-	@$(GOGET) github.com/swaggo/swag/cmd/swag
 	@$(GOGET) google.golang.org/protobuf/cmd/protoc-gen-go
 	@$(GOGET) google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	@echo "Dependencies installed"
@@ -82,12 +81,6 @@ proto: ## Generate protocol buffers
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		$(PROTO_DIR)/*.proto
 	@echo "Protocol buffers generated"
-
-# Generate swagger documentation
-swagger: ## Generate swagger documentation
-	@echo "Generating swagger documentation..."
-	@swag init -g $(MAIN_PATH) -o docs
-	@echo "Swagger documentation generated"
 
 # Build docker image
 docker-build: ## Build docker image
