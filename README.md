@@ -11,7 +11,7 @@ A sample microservice for user authentication and authorization with JWT, roles,
 - gRPC API for user profile
 - Distributed tracing with Jaeger
 - Redis caching for database queries
-- Multiple database support:
+- Selectable database support:
   - PostgreSQL
   - MongoDB
 - Docker and Docker Compose support
@@ -22,6 +22,7 @@ A sample microservice for user authentication and authorization with JWT, roles,
 - PostgreSQL or MongoDB
 - Redis
 - Jaeger (optional, for tracing)
+- Docker (optional, for deployment)
 
 ## Getting Started
 
