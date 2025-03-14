@@ -15,12 +15,15 @@ import (
 
 // PermissionRepository handles database operations for permissions
 type PermissionRepository struct {
-	db    *database.DB
+	db    *database.PostgresDB
 	cache *cache.RedisClient
 }
 
+// Ensure PermissionRepository implements PermissionRepositoryInterface
+var _ PermissionRepositoryInterface = (*PermissionRepository)(nil)
+
 // NewPermissionRepository creates a new permission repository
-func NewPermissionRepository(db *database.DB, cache *cache.RedisClient) *PermissionRepository {
+func NewPermissionRepository(db *database.PostgresDB, cache *cache.RedisClient) *PermissionRepository {
 	return &PermissionRepository{
 		db:    db,
 		cache: cache,
@@ -296,13 +299,13 @@ func (r *PermissionRepository) invalidatePermissionCache() {
 }
 
 // ExecuteTx executes a function within a transaction
-func (r *PermissionRepository) ExecuteTx(ctx context.Context, fn func(*TxRepository) error) error {
+func (r *PermissionRepository) ExecuteTx(ctx context.Context, fn func(TxRepositoryInterface) error) error {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	txRepo := &TxRepository{tx: tx}
+	txRepo := &PostgresqlTxRepository{tx: tx}
 	err = fn(txRepo)
 	if err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {

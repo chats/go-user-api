@@ -14,12 +14,12 @@ import (
 
 // UserService handles user-related operations
 type UserService struct {
-	userRepo *repositories.UserRepository
-	roleRepo *repositories.RoleRepository
+	userRepo repositories.UserRepositoryInterface
+	roleRepo repositories.RoleRepositoryInterface
 }
 
 // NewUserService creates a new user service
-func NewUserService(userRepo *repositories.UserRepository, roleRepo *repositories.RoleRepository) *UserService {
+func NewUserService(userRepo repositories.UserRepositoryInterface, roleRepo repositories.RoleRepositoryInterface) *UserService {
 	return &UserService{
 		userRepo: userRepo,
 		roleRepo: roleRepo,
@@ -51,7 +51,7 @@ func (s *UserService) CreateUser(ctx context.Context, request models.UserCreateR
 	}
 
 	// Start transaction
-	err = s.userRepo.ExecuteTx(ctx, func(tx *repositories.TxRepository) error {
+	err = s.userRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
 		// Save user to database
 		if err := tx.CreateUser(ctx, user); err != nil {
 			return fmt.Errorf("failed to create user: %w", err)
@@ -200,7 +200,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, request models.
 	user.UpdatedAt = time.Now()
 
 	// Start transaction
-	err = s.userRepo.ExecuteTx(ctx, func(tx *repositories.TxRepository) error {
+	err = s.userRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
 		// Update user in database
 		if err := tx.UpdateUser(ctx, user); err != nil {
 			return fmt.Errorf("failed to update user: %w", err)

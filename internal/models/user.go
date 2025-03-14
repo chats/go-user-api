@@ -9,16 +9,16 @@ import (
 
 // User represents a user in the system
 type User struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	Username  string    `json:"username" db:"username"`
-	Email     string    `json:"email" db:"email"`
-	Password  string    `json:"-" db:"password"` // Password is not included in JSON responses
-	FirstName string    `json:"first_name" db:"first_name"`
-	LastName  string    `json:"last_name" db:"last_name"`
-	IsActive  bool      `json:"is_active" db:"is_active"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	Roles     []Role    `json:"roles,omitempty" db:"-"`
+	ID        uuid.UUID `json:"id" db:"id" bson:"_id,omitempty"`
+	Username  string    `json:"username" db:"username" bson:"username"`
+	Email     string    `json:"email" db:"email" bson:"email"`
+	Password  string    `json:"-" db:"password" bson:"password"` // Password is not included in JSON responses
+	FirstName string    `json:"first_name" db:"first_name" bson:"first_name"`
+	LastName  string    `json:"last_name" db:"last_name" bson:"last_name"`
+	IsActive  bool      `json:"is_active" db:"is_active" bson:"is_active"`
+	CreatedAt time.Time `json:"created_at" db:"created_at" bson:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at" bson:"updated_at"`
+	Roles     []Role    `json:"roles,omitempty" db:"-" bson:"roles,omitempty"`
 }
 
 // UserCreateRequest represents the request to create a new user

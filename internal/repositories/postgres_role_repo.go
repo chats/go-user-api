@@ -15,12 +15,15 @@ import (
 
 // RoleRepository handles database operations for roles
 type RoleRepository struct {
-	db    *database.DB
+	db    *database.PostgresDB
 	cache *cache.RedisClient
 }
 
+// Ensure RoleRepository implements RoleRepositoryInterface
+var _ RoleRepositoryInterface = (*RoleRepository)(nil)
+
 // NewRoleRepository creates a new role repository
-func NewRoleRepository(db *database.DB, cache *cache.RedisClient) *RoleRepository {
+func NewRoleRepository(db *database.PostgresDB, cache *cache.RedisClient) *RoleRepository {
 	return &RoleRepository{
 		db:    db,
 		cache: cache,
@@ -345,13 +348,13 @@ func (r *RoleRepository) invalidateUserPermissionCache() {
 }
 
 // ExecuteTx executes a function within a transaction
-func (r *RoleRepository) ExecuteTx(ctx context.Context, fn func(*TxRepository) error) error {
+func (r *RoleRepository) ExecuteTx(ctx context.Context, fn func(TxRepositoryInterface) error) error {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	txRepo := &TxRepository{tx: tx}
+	txRepo := &PostgresqlTxRepository{tx: tx}
 	err = fn(txRepo)
 	if err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {

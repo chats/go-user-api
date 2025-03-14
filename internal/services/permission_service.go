@@ -12,11 +12,11 @@ import (
 
 // PermissionService handles permission-related operations
 type PermissionService struct {
-	permissionRepo *repositories.PermissionRepository
+	permissionRepo repositories.PermissionRepositoryInterface
 }
 
 // NewPermissionService creates a new permission service
-func NewPermissionService(permissionRepo *repositories.PermissionRepository) *PermissionService {
+func NewPermissionService(permissionRepo repositories.PermissionRepositoryInterface) *PermissionService {
 	return &PermissionService{
 		permissionRepo: permissionRepo,
 	}
@@ -41,7 +41,7 @@ func (s *PermissionService) CreatePermission(ctx context.Context, request models
 	}
 
 	// Start transaction
-	err = s.permissionRepo.ExecuteTx(ctx, func(tx *repositories.TxRepository) error {
+	err = s.permissionRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
 		// Save permission to database
 		if err := tx.CreatePermission(ctx, permission); err != nil {
 			return fmt.Errorf("failed to create permission: %w", err)
@@ -161,7 +161,7 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, id string, req
 	permission.UpdatedAt = time.Now()
 
 	// Start transaction
-	err = s.permissionRepo.ExecuteTx(ctx, func(tx *repositories.TxRepository) error {
+	err = s.permissionRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
 		// Update permission in database
 		if err := tx.UpdatePermission(ctx, permission); err != nil {
 			return fmt.Errorf("failed to update permission: %w", err)

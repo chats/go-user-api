@@ -11,13 +11,15 @@ A sample microservice for user authentication and authorization with JWT, roles,
 - gRPC API for user profile
 - Distributed tracing with Jaeger
 - Redis caching for database queries
-- PostgreSQL database
+- Multiple database support:
+  - PostgreSQL
+  - MongoDB
 - Docker and Docker Compose support
 
 ## Requirements
 
 - Go 1.23 or higher
-- PostgreSQL
+- PostgreSQL or MongoDB
 - Redis
 - Jaeger (optional, for tracing)
 
@@ -36,7 +38,15 @@ cd go-user-api
 docker-compose up -d
 ```
 
-This will start the API service along with PostgreSQL, Redis, and Jaeger.
+This will start the API service along with PostgreSQL, MongoDB, Redis, and Jaeger.
+
+By default, the service will use PostgreSQL. To use MongoDB instead, edit the `docker-compose.yml` file and change the `DB_TYPE` environment variable:
+
+```yaml
+go-user-api:
+  environment:
+    - DB_TYPE=mongodb  # Change from 'postgres' to 'mongodb'
+```
 
 ### Manual Setup
 
@@ -45,7 +55,7 @@ If you prefer to run the project manually:
 1. Install Go 1.23 or higher
 2. Clone the repository
 3. Install dependencies
-4. Set up PostgreSQL, Redis
+4. Set up PostgreSQL or MongoDB, Redis
 5. Configure environment variables
 6. Run the application
 
@@ -62,6 +72,53 @@ cp .env.example .env
 
 # Run the application
 go run cmd/server/main.go
+```
+
+## Configuration
+
+The application can be configured through environment variables or a `.env` file:
+
+### Database Selection
+
+Set the database type to use:
+
+```
+DB_TYPE=postgres  # Options: postgres, mongodb
+```
+
+### PostgreSQL Configuration
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=user-api
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_SSL_MODE=disable
+```
+
+### MongoDB Configuration
+
+```
+MONGODB_HOST=localhost
+MONGODB_PORT=27017
+MONGODB_NAME=user-api
+MONGODB_USER=
+MONGODB_PASSWORD=
+MONGODB_AUTH_DB=admin
+```
+
+### Additional Configuration Options
+
+```
+JWT_SECRET=your-super-secret-key-here
+JWT_EXPIRE_MINUTES=60
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_CACHE_TTL=3600
 ```
 
 ## API Endpoints
@@ -132,6 +189,13 @@ protoc --go_out=. --go_opt=paths=source_relative \
     --go-grpc_out=. --go-grpc_opt=paths=source_relative \
     api/grpc/proto/user.proto
 ```
+
+## Database Administration
+
+When running with Docker Compose:
+
+- **PostgreSQL**: Adminer is available at http://localhost:8081
+- **MongoDB**: Mongo Express is available at http://localhost:8082
 
 ## License
 

@@ -13,14 +13,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// UserRepositoryImpl handles database operations for users
+// UserRepository handles database operations for users
 type UserRepository struct {
-	db    *database.DB
+	db    *database.PostgresDB
 	cache *cache.RedisClient
 }
 
+// Ensure UserRepository implements UserRepositoryInterface
+var _ UserRepositoryInterface = (*UserRepository)(nil)
+
 // NewUserRepository creates a new user repository
-func NewUserRepository(db *database.DB, cache *cache.RedisClient) *UserRepository {
+func NewUserRepository(db *database.PostgresDB, cache *cache.RedisClient) *UserRepository {
 	return &UserRepository{
 		db:    db,
 		cache: cache,
@@ -440,13 +443,13 @@ func (r *UserRepository) invalidateUserCache() {
 }
 
 // ExecuteTx executes a function within a transaction
-func (r *UserRepository) ExecuteTx(ctx context.Context, fn func(*TxRepository) error) error {
+func (r *UserRepository) ExecuteTx(ctx context.Context, fn func(TxRepositoryInterface) error) error {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	txRepo := &TxRepository{tx: tx}
+	txRepo := &PostgresqlTxRepository{tx: tx}
 	err = fn(txRepo)
 	if err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {

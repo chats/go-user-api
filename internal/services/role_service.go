@@ -13,14 +13,14 @@ import (
 
 // RoleService handles role-related operations
 type RoleService struct {
-	roleRepo       *repositories.RoleRepository
-	permissionRepo *repositories.PermissionRepository
+	roleRepo       repositories.RoleRepositoryInterface
+	permissionRepo repositories.PermissionRepositoryInterface
 }
 
 // NewRoleService creates a new role service
 func NewRoleService(
-	roleRepo *repositories.RoleRepository,
-	permissionRepo *repositories.PermissionRepository,
+	roleRepo repositories.RoleRepositoryInterface,
+	permissionRepo repositories.PermissionRepositoryInterface,
 ) *RoleService {
 	return &RoleService{
 		roleRepo:       roleRepo,
@@ -45,7 +45,7 @@ func (s *RoleService) CreateRole(ctx context.Context, request models.RoleCreateR
 	}
 
 	// Start transaction
-	err = s.roleRepo.ExecuteTx(ctx, func(tx *repositories.TxRepository) error {
+	err = s.roleRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
 		// Save role to database
 		if err := tx.CreateRole(ctx, role); err != nil {
 			return fmt.Errorf("failed to create role: %w", err)
@@ -157,7 +157,7 @@ func (s *RoleService) UpdateRole(ctx context.Context, id string, request models.
 	role.UpdatedAt = time.Now()
 
 	// Start transaction
-	err = s.roleRepo.ExecuteTx(ctx, func(tx *repositories.TxRepository) error {
+	err = s.roleRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
 		// Update role in database
 		if err := tx.UpdateRole(ctx, role); err != nil {
 			return fmt.Errorf("failed to update role: %w", err)

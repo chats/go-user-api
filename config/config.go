@@ -17,13 +17,24 @@ type Config struct {
 	CorsAllowOrigins string
 	LogLevel         string
 
-	// Database
+	// Database type (postgres or mongodb)
+	DBType string
+
+	// PostgreSQL
 	DBHost     string
 	DBPort     string
 	DBName     string
 	DBUser     string
 	DBPassword string
 	DBSSLMode  string
+
+	// MongoDB
+	MongoDBHost     string
+	MongoDBPort     string
+	MongoDBName     string
+	MongoDBUser     string
+	MongoDBPassword string
+	MongoDBAuthDB   string
 
 	// JWT
 	JWTSecret       string
@@ -57,13 +68,24 @@ func LoadConfig() (*Config, error) {
 		CorsAllowOrigins: getEnv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://localhost:8080"),
 		LogLevel:         getEnv("LOG_LEVEL", "debug"),
 
-		// Database
+		// Database type
+		DBType: getEnv("DB_TYPE", "postgres"),
+
+		// PostgreSQL
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
 		DBName:     getEnv("DB_NAME", "user-api"),
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: getEnv("DB_PASSWORD", "postgres"),
 		DBSSLMode:  getEnv("DB_SSL_MODE", "disable"),
+
+		// MongoDB
+		MongoDBHost:     getEnv("MONGODB_HOST", "localhost"),
+		MongoDBPort:     getEnv("MONGODB_PORT", "27017"),
+		MongoDBName:     getEnv("MONGODB_NAME", "user-api"),
+		MongoDBUser:     getEnv("MONGODB_USER", ""),
+		MongoDBPassword: getEnv("MONGODB_PASSWORD", ""),
+		MongoDBAuthDB:   getEnv("MONGODB_AUTH_DB", "admin"),
 
 		// JWT
 		JWTSecret:       getEnv("JWT_SECRET", "your-super-secret-key-here"),
@@ -92,6 +114,17 @@ func getEnv(key, defaultValue string) string {
 func (c *Config) GetDBConnString() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSSLMode)
+}
+
+func (c *Config) GetMongoDBConnString() string {
+	// If username and password are set, include them in the connection string
+	if c.MongoDBUser != "" && c.MongoDBPassword != "" {
+		return fmt.Sprintf("mongodb://%s:%s@%s:%s/%s?authSource=%s",
+			c.MongoDBUser, c.MongoDBPassword, c.MongoDBHost, c.MongoDBPort, c.MongoDBName, c.MongoDBAuthDB)
+	}
+	// Otherwise, connect without authentication
+	return fmt.Sprintf("mongodb://%s:%s/%s",
+		c.MongoDBHost, c.MongoDBPort, c.MongoDBName)
 }
 
 func (c *Config) GetRedisAddr() string {

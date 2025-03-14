@@ -14,11 +14,11 @@ import (
 
 // AuthService handles authentication-related operations
 type AuthService struct {
-	userRepo *repositories.UserRepository
+	userRepo repositories.UserRepositoryInterface
 	config   *config.Config
 }
 
-func NewAuthService(userRepo *repositories.UserRepository, config *config.Config) *AuthService {
+func NewAuthService(userRepo repositories.UserRepositoryInterface, config *config.Config) *AuthService {
 	return &AuthService{
 		userRepo: userRepo,
 		config:   config,

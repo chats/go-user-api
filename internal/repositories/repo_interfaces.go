@@ -9,7 +9,7 @@ import (
 
 // UserRepository defines the interface for user repository operations
 type UserRepositoryInterface interface {
-	ExecuteTx(ctx context.Context, fn func(*TxRepository) error) error
+	ExecuteTx(ctx context.Context, fn func(TxRepositoryInterface) error) error
 	Create(ctx context.Context, user *models.User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
@@ -26,7 +26,7 @@ type UserRepositoryInterface interface {
 
 // RoleRepository defines the interface for role repository operations
 type RoleRepositoryInterface interface {
-	ExecuteTx(ctx context.Context, fn func(*TxRepository) error) error
+	ExecuteTx(ctx context.Context, fn func(TxRepositoryInterface) error) error
 	Create(ctx context.Context, role *models.Role) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.Role, error)
 	GetByName(ctx context.Context, name string) (*models.Role, error)
@@ -39,7 +39,7 @@ type RoleRepositoryInterface interface {
 
 // PermissionRepository defines the interface for permission repository operations
 type PermissionRepositoryInterface interface {
-	ExecuteTx(ctx context.Context, fn func(*TxRepository) error) error
+	ExecuteTx(ctx context.Context, fn func(TxRepositoryInterface) error) error
 	Create(ctx context.Context, permission *models.Permission) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.Permission, error)
 	GetByResourceAction(ctx context.Context, resource, action string) (*models.Permission, error)

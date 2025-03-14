@@ -8,13 +8,13 @@ import (
 
 // Permission represents a permission in the system
 type Permission struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Description string    `json:"description" db:"description"`
-	Resource    string    `json:"resource" db:"resource"`
-	Action      string    `json:"action" db:"action"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID          uuid.UUID `json:"id" db:"id" bson:"_id,omitempty"`
+	Name        string    `json:"name" db:"name" bson:"name"`
+	Description string    `json:"description" db:"description" bson:"description"`
+	Resource    string    `json:"resource" db:"resource" bson:"resource"`
+	Action      string    `json:"action" db:"action" bson:"action"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at" bson:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at" bson:"updated_at"`
 }
 
 // PermissionCreateRequest represents a request to create a permission

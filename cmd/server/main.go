@@ -51,10 +51,12 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to load configuration")
 	}
 
+	log.Info().Str("database_type", cfg.DBType).Msg("Using database type")
+
 	// Connect to database with retries
-	var db *database.DB
+	var db database.Database
 	for i := 0; i < serviceConnectRetries; i++ {
-		db, err = database.NewDB(cfg)
+		db, err = database.NewDatabase(cfg)
 		if err == nil {
 			break
 		}
@@ -103,10 +105,24 @@ func main() {
 		}
 	}()
 
-	// Initialize repositories
-	userRepo := repositories.NewUserRepository(db, redisClient)
-	roleRepo := repositories.NewRoleRepository(db, redisClient)
-	permissionRepo := repositories.NewPermissionRepository(db, redisClient)
+	// Create repository factory
+	repoFactory := repositories.NewRepositoryFactory(cfg, db, redisClient)
+
+	// Initialize repositories using the factory
+	userRepo, err := repoFactory.CreateUserRepository()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create user repository")
+	}
+
+	roleRepo, err := repoFactory.CreateRoleRepository()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create role repository")
+	}
+
+	permissionRepo, err := repoFactory.CreatePermissionRepository()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create permission repository")
+	}
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, cfg)

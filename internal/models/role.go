@@ -8,12 +8,12 @@ import (
 
 // Role represents a user role in the system
 type Role struct {
-	ID          uuid.UUID    `json:"id" db:"id"`
-	Name        string       `json:"name" db:"name"`
-	Description string       `json:"description" db:"description"`
-	CreatedAt   time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at" db:"updated_at"`
-	Permissions []Permission `json:"permissions,omitempty" db:"-"`
+	ID          uuid.UUID    `json:"id" db:"id" bson:"_id,omitempty"`
+	Name        string       `json:"name" db:"name" bson:"name"`
+	Description string       `json:"description" db:"description" bson:"description"`
+	CreatedAt   time.Time    `json:"created_at" db:"created_at" bson:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at" db:"updated_at" bson:"updated_at"`
+	Permissions []Permission `json:"permissions,omitempty" db:"-" bson:"permissions,omitempty"`
 }
 
 // RoleCreateRequest represents a request to create a role
