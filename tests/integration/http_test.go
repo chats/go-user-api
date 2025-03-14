@@ -16,9 +16,12 @@ import (
 	"github.com/chats/go-user-api/config"
 	"github.com/chats/go-user-api/internal/mocks"
 	"github.com/chats/go-user-api/internal/models"
+	"github.com/chats/go-user-api/internal/repositories"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/chats/go-user-api/internal/tracing"
+	"github.com/chats/go-user-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -102,6 +105,30 @@ func makeRequest(app *fiber.App, method, path string, body interface{}, token st
 	return resp, respBody, nil
 }
 
+// createTestToken creates a valid JWT token for testing
+func createTestToken(userID uuid.UUID, cfg *config.Config) (string, error) {
+	// Create claims with test user data
+	claims := utils.JWTClaims{
+		UserID:   userID.String(),
+		Username: "testuser",
+		Roles:    []string{"admin"},
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(cfg.JWTExpireMinute))),
+		},
+	}
+
+	// Create the token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Sign the token with the secret key
+	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
 func TestAuthLogin_Integration(t *testing.T) {
 	app, mockUserRepo, _, _ := setupTestApp()
 
@@ -155,6 +182,12 @@ func TestAuthLogin_Integration(t *testing.T) {
 func TestGetUserByID_Integration(t *testing.T) {
 	app, mockUserRepo, _, _ := setupTestApp()
 
+	// Get the test config
+	cfg := &config.Config{
+		JWTSecret:       "your-super-secret-key-here",
+		JWTExpireMinute: 60,
+	}
+
 	// Create test user and token
 	userID := uuid.New()
 	user := &models.User{
@@ -171,10 +204,17 @@ func TestGetUserByID_Integration(t *testing.T) {
 		},
 	}
 
-	// Setup mock behaviors
-	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiYWRtaW4iXSwiZXhwIjoxOTkxNjYwODAwfQ.tY_j1nkcr9wPT4BqiCsTlG8lSb7IsSBu_pK63bnCjFc"
-	mockUserRepo.On("HasPermission", mock.Anything, mock.Anything, "user", "read").Return(true, nil)
+	// Create a valid token for the test
+	token, err := createTestToken(userID, cfg)
+	require.NoError(t, err)
+
+	// Setup mock behaviors - important part for authentication
+	// Mock the claims extraction from the token
 	mockUserRepo.On("GetByID", mock.Anything, userID).Return(user, nil)
+
+	// This is critical - mock the HasPermission with the correct user ID
+	// Extract the ID from claims, not using mock.Anything
+	mockUserRepo.On("HasPermission", mock.Anything, userID, "user", "read").Return(true, nil)
 
 	// Test successful user retrieval
 	resp, body, err := makeRequest(app, "GET", fmt.Sprintf("/api/v1/users/%s", userID), nil, token)
@@ -200,15 +240,55 @@ func TestGetUserByID_Integration(t *testing.T) {
 func TestCreateUser_Integration(t *testing.T) {
 	app, mockUserRepo, _, _ := setupTestApp()
 
-	// Setup mock behaviors
-	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiYWRtaW4iXSwiZXhwIjoxOTkxNjYwODAwfQ.tY_j1nkcr9wPT4BqiCsTlG8lSb7IsSBu_pK63bnCjFc"
-	mockUserRepo.On("HasPermission", mock.Anything, mock.Anything, "user", "write").Return(true, nil)
+	// Get config for JWT token generation
+	cfg := &config.Config{
+		JWTSecret:       "your-super-secret-key-here",
+		JWTExpireMinute: 60,
+	}
+
+	// Create the admin user ID that will be in the JWT token
+	adminUserID := uuid.New()
+
+	// Generate a valid token
+	token, err := createTestToken(adminUserID, cfg)
+	require.NoError(t, err)
+
+	// Setup mock behaviors for the token authentication
+	mockUserRepo.On("GetByID", mock.Anything, adminUserID).Return(&models.User{
+		ID:       adminUserID,
+		Username: "admin",
+		IsActive: true,
+		Roles:    []models.Role{{Name: "admin"}},
+	}, nil)
+
+	// Setup mocks for permission check
+	mockUserRepo.On("HasPermission", mock.Anything, adminUserID, "user", "write").Return(true, nil)
+
+	// Setup mocks for user creation
 	mockUserRepo.On("GetByUsername", mock.Anything, "newuser").Return(nil, errors.New("user not found"))
-	mockUserRepo.On("ExecuteTx", mock.Anything, mock.AnythingOfType("func(repositories.TxRepositoryInterface) error")).Return(nil)
+
+	// Create a mock transaction repository that will be used within ExecuteTx
+	mockTxRepo := new(mocks.MockTxRepository)
+
+	// IMPORTANT: Mock the CreateUser method on the transaction repository
+	mockTxRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
+
+	// Also mock the AssignRolesToUser method if it's called
+	mockTxRepo.On("AssignRolesToUser", mock.Anything, mock.AnythingOfType("uuid.UUID"),
+		mock.AnythingOfType("[]uuid.UUID")).Return(nil).Maybe()
+
+	// Setup the ExecuteTx mock to use our mockTxRepo
+	mockUserRepo.On("ExecuteTx", mock.Anything, mock.AnythingOfType("func(repositories.TxRepositoryInterface) error")).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			// Execute the transaction function with our mockTxRepo
+			fn := args.Get(1).(func(repositories.TxRepositoryInterface) error)
+			fn(mockTxRepo)
+		})
 
 	// For getting the created user
 	newUserID := uuid.New()
-	mockUserRepo.On("GetByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(&models.User{
+	createdUser := &models.User{
 		ID:        newUserID,
 		Username:  "newuser",
 		Email:     "new@example.com",
@@ -218,9 +298,13 @@ func TestCreateUser_Integration(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Roles:     []models.Role{},
-	}, nil)
+	}
 
-	// Test successful user creation
+	// This mock will be called after the user is created to return the new user
+	mockUserRepo.On("GetByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).
+		Return(createdUser, nil).Once()
+
+	// Test user creation request
 	createUserReq := map[string]interface{}{
 		"username":   "newuser",
 		"email":      "new@example.com",
@@ -229,14 +313,24 @@ func TestCreateUser_Integration(t *testing.T) {
 		"last_name":  "User",
 	}
 
+	// Make the request
 	resp, body, err := makeRequest(app, "POST", "/api/v1/users", createUserReq, token)
 	require.NoError(t, err)
 
-	// Assertions
-	assert.Equal(t, http.StatusCreated, resp.StatusCode)
-	assert.True(t, body["success"].(bool))
-	assert.NotNil(t, body["data"])
+	// Debug output if needed
+	t.Logf("Response status: %d, body: %+v", resp.StatusCode, body)
 
+	// Assertions with better error handling
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+
+	// Use require to stop test if these fail
+	require.NotNil(t, body, "Response body should not be nil")
+	require.Contains(t, body, "success", "Response should contain 'success' field")
+	require.True(t, body["success"].(bool), "Response 'success' field should be true")
+	require.Contains(t, body, "data", "Response should contain 'data' field")
+	require.NotNil(t, body["data"], "Response 'data' field should not be nil")
+
+	// Now it's safe to access data
 	data := body["data"].(map[string]interface{})
 	assert.NotEmpty(t, data["id"])
 	assert.Equal(t, "newuser", data["username"])
@@ -247,6 +341,7 @@ func TestCreateUser_Integration(t *testing.T) {
 
 	// Verify mock expectations
 	mockUserRepo.AssertExpectations(t)
+	mockTxRepo.AssertExpectations(t)
 }
 
 func TestListRoles_Integration(t *testing.T) {
