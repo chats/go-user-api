@@ -11,6 +11,7 @@ import (
 )
 
 type Config struct {
+	AppName          string
 	AppEnv           string
 	ServerPort       string
 	GrpcPort         string
@@ -62,6 +63,7 @@ func LoadConfig() (*Config, error) {
 	jwtExpireMinute, _ := strconv.Atoi(getEnv("JWT_EXPIRE_MINUTES", "60"))
 
 	return &Config{
+		AppName:          getEnv("APP_NAME", "user-api"),
 		AppEnv:           getEnv("APP_ENV", "development"),
 		ServerPort:       getEnv("SERVER_PORT", "8080"),
 		GrpcPort:         getEnv("GRPC_PORT", "50051"),

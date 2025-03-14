@@ -23,11 +23,11 @@ type User struct {
 
 // UserCreateRequest represents the request to create a new user
 type UserCreateRequest struct {
-	Username  string   `json:"username" validate:"required,min=3,max=50"`
+	Username  string   `json:"username" validate:"required,min=6,max=50,alphanum"`
 	Email     string   `json:"email" validate:"required,email"`
-	Password  string   `json:"password" validate:"required,min=8"`
-	FirstName string   `json:"first_name"`
-	LastName  string   `json:"last_name"`
+	Password  string   `json:"password" validate:"required,min=8,max=100"`
+	FirstName string   `json:"first_name" validate:"max=150"`
+	LastName  string   `json:"last_name"  validate:"max=150"`
 	RoleIDs   []string `json:"role_ids"`
 }
 

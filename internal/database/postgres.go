@@ -33,8 +33,8 @@ func (db *PostgresDB) Connect(ctx context.Context) error {
 	}
 
 	// Set connection pool settings
-	sqlxDB.SetMaxOpenConns(25)
-	sqlxDB.SetMaxIdleConns(5)
+	sqlxDB.SetMaxOpenConns(50)
+	sqlxDB.SetMaxIdleConns(10)
 
 	db.DB = sqlxDB
 	return nil

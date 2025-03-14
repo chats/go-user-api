@@ -22,6 +22,7 @@ import (
 	"github.com/chats/go-user-api/internal/tracing"
 	"github.com/gofiber/contrib/fiberzerolog"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
@@ -141,7 +142,7 @@ func main() {
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
-		AppName:               "go-user-api",
+		AppName:               cfg.AppName,
 		DisableStartupMessage: true,
 		ReadTimeout:           30 * time.Second,
 		WriteTimeout:          30 * time.Second,
@@ -171,6 +172,9 @@ func main() {
 	}))
 	app.Use(recover.New())
 	app.Use(requestid.New())
+	app.Use(compress.New(compress.Config{
+		Level: compress.LevelBestSpeed,
+	}))
 
 	// CORS configuration with specific origins
 	app.Use(cors.New(cors.Config{
