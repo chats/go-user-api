@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,7 +34,7 @@ func setupTestApp() (*fiber.App, *mocks.MockUserRepository, *mocks.MockRoleRepos
 
 	// Create config for testing
 	cfg := &config.Config{
-		JWTSecret:       "test-secret-key",
+		JWTSecret:       "your-super-secret-key-here", // This matches what's in .env.example
 		JWTExpireMinute: 60,
 	}
 
@@ -90,7 +91,11 @@ func makeRequest(app *fiber.App, method, path string, body interface{}, token st
 	var respBody map[string]interface{}
 	if resp.Body != nil {
 		if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-			return resp, nil, err
+			if err != io.EOF { // Add this check to handle empty response bodies
+				return resp, nil, err
+			}
+			// If we get EOF, return an empty map instead of nil
+			respBody = map[string]interface{}{}
 		}
 	}
 

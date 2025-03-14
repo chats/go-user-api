@@ -30,12 +30,15 @@ func TestPermissionService_CreatePermission(t *testing.T) {
 				fn := args.Get(1).(func(repositories.TxRepositoryInterface) error)
 				fn(mockTxRepo)
 			})
-		mockTxRepo.On("CreatePermission", mock.Anything, mock.AnythingOfType("*models.Permission")).
-			Run(func(args mock.Arguments) {
-				perm := args.Get(1).(*models.Permission)
-				perm.ID = uuid.New() // Simulate ID assignment
-			}).
-			Return(nil)
+		mockTxRepo.On("CreatePermission", mock.Anything, mock.MatchedBy(func(p *models.Permission) bool {
+			// This matcher will match any permission object with the correct fields
+			return p.Name == "report:read" &&
+				p.Resource == "report" &&
+				p.Action == "read"
+		})).Run(func(args mock.Arguments) {
+			perm := args.Get(1).(*models.Permission)
+			perm.ID = uuid.New() // Simulate ID assignment
+		}).Return(nil)
 
 		// Create service
 		permService := services.NewPermissionService(mockPermRepo)

@@ -36,7 +36,7 @@ func setupGRPCServer() (*bufconn.Listener, *mocks.MockUserRepository, *mocks.Moc
 
 	// Create config for testing
 	cfg := &config.Config{
-		JWTSecret:       "test-secret-key",
+		JWTSecret:       "your-super-secret-key-here", // This matches what's in .env.example
 		JWTExpireMinute: 60,
 	}
 
