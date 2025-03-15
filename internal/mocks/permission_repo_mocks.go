@@ -46,6 +46,9 @@ func (m *MockPermissionRepository) UpdateUserPassword(ctx context.Context, userI
 
 func (m *MockPermissionRepository) GetByResourceAction(ctx context.Context, resource, action string) (*models.Permission, error) {
 	args := m.Called(ctx, resource, action)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*models.Permission), args.Error(1)
 }
 
