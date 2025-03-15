@@ -83,7 +83,7 @@ func (s *UserService) CreateUser(ctx context.Context, request models.UserCreateR
 	// Get the updated user with roles
 	updatedUser, err := s.userRepo.GetByID(ctx, user.ID)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get updated user after creation")
+		log.Debug().Err(err).Msg("Failed to get updated user after creation")
 		// Return the user without roles as fallback
 		// แก้ไขตรงนี้: สร้างตัวแปรก่อนแล้วค่อย return address ของตัวแปรนั้น
 		response := user.ToResponse()
@@ -244,7 +244,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, request models.
 	// Get the updated user with roles
 	updatedUser, err := s.userRepo.GetByID(ctx, user.ID)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get updated user after update")
+		log.Debug().Err(err).Msg("Failed to get updated user after update")
 		// แก้ไขตรงนี้: สร้างตัวแปรก่อนแล้วค่อย return address ของตัวแปรนั้น
 		response := user.ToResponse()
 		return &response, nil

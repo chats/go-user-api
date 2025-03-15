@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
@@ -36,6 +38,66 @@ const (
 	gracefulTimeout       = 15 * time.Second
 )
 
+func dbConnect(cfg *config.Config) (database.Database, error) {
+	var db database.Database
+	var err error
+	backoff := time.Second
+	maxBackoff := 30 * time.Second
+	for i := 0; i < serviceConnectRetries; i++ {
+		db, err = database.NewDatabase(cfg)
+		if err == nil {
+			break
+		}
+
+		if i == serviceConnectRetries-1 {
+			return nil, fmt.Errorf("failed to connect after %d attempts: %w", serviceConnectRetries, err)
+		}
+
+		// Add jitter to prevent thundering herd
+		jitter := time.Duration(rand.Int63n(int64(backoff) / 2))
+		sleepTime := backoff + jitter
+		log.Warn().Err(err).Dur("retry_in", sleepTime).Int("attempt", i+1).Msg("Retrying connection")
+		time.Sleep(sleepTime)
+
+		// Exponential backoff
+		backoff = time.Duration(float64(backoff) * 1.5)
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
+	return db, err
+}
+
+func redisConnect(cfg *config.Config) (*cache.RedisClient, error) {
+	var redisClient *cache.RedisClient
+	var err error
+	backoff := time.Second
+	maxBackoff := 30 * time.Second
+	for i := 0; i < serviceConnectRetries; i++ {
+		redisClient, err = cache.NewRedisClient(cfg)
+		if err == nil {
+			break
+		}
+
+		if i == serviceConnectRetries-1 {
+			return nil, fmt.Errorf("failed to connect after %d attempts: %w", serviceConnectRetries, err)
+		}
+
+		// Add jitter to prevent thundering herd
+		jitter := time.Duration(rand.Int63n(int64(backoff) / 2))
+		sleepTime := backoff + jitter
+		log.Warn().Err(err).Dur("retry_in", sleepTime).Int("attempt", i+1).Msg("Retrying connection")
+		time.Sleep(sleepTime)
+
+		// Exponential backoff
+		backoff = time.Duration(float64(backoff) * 1.5)
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
+	return redisClient, err
+}
+
 func main() {
 	// Set up context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,16 +117,7 @@ func main() {
 	log.Info().Str("database_type", cfg.DBType).Msg("Using database type")
 
 	// Connect to database with retries
-	var db database.Database
-	for i := 0; i < serviceConnectRetries; i++ {
-		db, err = database.NewDatabase(cfg)
-		if err == nil {
-			break
-		}
-		log.Warn().Err(err).Int("attempt", i+1).Int("maxAttempts", serviceConnectRetries).
-			Msg("Failed to connect to database, retrying...")
-		time.Sleep(serviceRetryInterval)
-	}
+	db, err := dbConnect(cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to database after multiple attempts")
 	}
@@ -76,16 +129,7 @@ func main() {
 	}
 
 	// Initialize Redis cache with retries
-	var redisClient *cache.RedisClient
-	for i := 0; i < serviceConnectRetries; i++ {
-		redisClient, err = cache.NewRedisClient(cfg)
-		if err == nil {
-			break
-		}
-		log.Warn().Err(err).Int("attempt", i+1).Int("maxAttempts", serviceConnectRetries).
-			Msg("Failed to connect to Redis, retrying...")
-		time.Sleep(serviceRetryInterval)
-	}
+	redisClient, err := redisConnect(cfg)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to connect to Redis after multiple attempts, continuing without caching")
 	}

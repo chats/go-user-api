@@ -63,7 +63,7 @@ func (r *RoleRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Rol
 	var role models.Role
 	found, err := r.cache.Get(cacheKey, &role)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get role from cache")
+		log.Debug().Err(err).Msg("Failed to get role from cache")
 	}
 
 	if found {
@@ -99,7 +99,7 @@ func (r *RoleRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Rol
 
 	// Cache the role
 	if err := r.cache.Set(cacheKey, role); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache role")
+		log.Debug().Err(err).Msg("Failed to cache role")
 	}
 
 	return &role, nil
@@ -113,7 +113,7 @@ func (r *RoleRepository) GetByName(ctx context.Context, name string) (*models.Ro
 	var role models.Role
 	found, err := r.cache.Get(cacheKey, &role)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get role from cache")
+		log.Debug().Err(err).Msg("Failed to get role from cache")
 	}
 
 	if found {
@@ -149,7 +149,7 @@ func (r *RoleRepository) GetByName(ctx context.Context, name string) (*models.Ro
 
 	// Cache the role
 	if err := r.cache.Set(cacheKey, role); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache role")
+		log.Debug().Err(err).Msg("Failed to cache role")
 	}
 
 	return &role, nil
@@ -163,7 +163,7 @@ func (r *RoleRepository) GetAll(ctx context.Context) ([]*models.Role, error) {
 	var roles []*models.Role
 	found, err := r.cache.Get(cacheKey, &roles)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get roles from cache")
+		log.Debug().Err(err).Msg("Failed to get roles from cache")
 	}
 
 	if found {
@@ -210,7 +210,7 @@ func (r *RoleRepository) GetAll(ctx context.Context) ([]*models.Role, error) {
 
 	// Cache the roles
 	if err := r.cache.Set(cacheKey, roles); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache roles")
+		log.Debug().Err(err).Msg("Failed to cache roles")
 	}
 
 	return roles, nil
@@ -332,18 +332,18 @@ func (r *RoleRepository) GetRolePermissions(ctx context.Context, roleID uuid.UUI
 // invalidateRoleCache clears all role-related cache
 func (r *RoleRepository) invalidateRoleCache() {
 	if err := r.cache.DeleteByPattern("role:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate role cache")
+		log.Debug().Err(err).Msg("Failed to invalidate role cache")
 	}
 
 	if err := r.cache.DeleteByPattern("roles:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate roles cache")
+		log.Debug().Err(err).Msg("Failed to invalidate roles cache")
 	}
 }
 
 // invalidateUserPermissionCache clears user permission cache
 func (r *RoleRepository) invalidateUserPermissionCache() {
 	if err := r.cache.DeleteByPattern("user:permissions:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate user permission cache")
+		log.Debug().Err(err).Msg("Failed to invalidate user permission cache")
 	}
 }
 

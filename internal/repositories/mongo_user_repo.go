@@ -90,7 +90,7 @@ func (r *MongoUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*model
 	var user models.User
 	found, err := r.cache.Get(cacheKey, &user)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get user from cache")
+		log.Debug().Err(err).Msg("Failed to get user from cache")
 	}
 
 	if found {
@@ -127,7 +127,7 @@ func (r *MongoUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*model
 
 	// Cache the user
 	if err := r.cache.Set(cacheKey, user); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache user")
+		log.Debug().Err(err).Msg("Failed to cache user")
 	}
 
 	return &user, nil
@@ -141,7 +141,7 @@ func (r *MongoUserRepository) GetByUsername(ctx context.Context, username string
 	var user models.User
 	found, err := r.cache.Get(cacheKey, &user)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get user from cache")
+		log.Debug().Err(err).Msg("Failed to get user from cache")
 	}
 
 	if found {
@@ -178,7 +178,7 @@ func (r *MongoUserRepository) GetByUsername(ctx context.Context, username string
 
 	// Cache the user
 	if err := r.cache.Set(cacheKey, user); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache user")
+		log.Debug().Err(err).Msg("Failed to cache user")
 	}
 
 	return &user, nil
@@ -192,7 +192,7 @@ func (r *MongoUserRepository) GetAll(ctx context.Context, limit, offset int) ([]
 	var users []*models.User
 	found, err := r.cache.Get(cacheKey, &users)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get users from cache")
+		log.Debug().Err(err).Msg("Failed to get users from cache")
 	}
 
 	if found {
@@ -238,7 +238,7 @@ func (r *MongoUserRepository) GetAll(ctx context.Context, limit, offset int) ([]
 
 	// Cache the users
 	if err := r.cache.Set(cacheKey, users); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache users")
+		log.Debug().Err(err).Msg("Failed to cache users")
 	}
 
 	return users, nil
@@ -316,7 +316,7 @@ func (r *MongoUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	// Also delete user roles relationships
 	_, err = r.userRolesCollection().DeleteMany(ctx, bson.M{"user_id": id})
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to delete user roles relationships")
+		log.Debug().Err(err).Msg("Failed to delete user roles relationships")
 	}
 
 	// Clear cache
@@ -401,7 +401,7 @@ func (r *MongoUserRepository) GetUserRoles(ctx context.Context, userID uuid.UUID
 		err := r.rolesCollection().FindOne(ctx, filter).Decode(&role)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				log.Warn().Str("role_id", roleID.String()).Msg("Role not found")
+				log.Debug().Str("role_id", roleID.String()).Msg("Role not found")
 				continue
 			}
 			return nil, fmt.Errorf("failed to get role from MongoDB: %w", err)
@@ -468,7 +468,7 @@ func (r *MongoUserRepository) GetUserPermissions(ctx context.Context, userID uui
 		err := r.permissionsCollection().FindOne(ctx, filter).Decode(&permission)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				log.Warn().Str("permission_id", permID.String()).Msg("Permission not found")
+				log.Debug().Str("permission_id", permID.String()).Msg("Permission not found")
 				continue
 			}
 			return nil, fmt.Errorf("failed to get permission from MongoDB: %w", err)
@@ -541,7 +541,7 @@ func (r *MongoUserRepository) CountUsers(ctx context.Context) (int, error) {
 	var count int
 	found, err := r.cache.Get(cacheKey, &count)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get user count from cache")
+		log.Debug().Err(err).Msg("Failed to get user count from cache")
 	}
 
 	if found {
@@ -558,7 +558,7 @@ func (r *MongoUserRepository) CountUsers(ctx context.Context) (int, error) {
 
 	// Cache the count
 	if err := r.cache.Set(cacheKey, count); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache user count")
+		log.Debug().Err(err).Msg("Failed to cache user count")
 	}
 
 	return count, nil
@@ -567,11 +567,11 @@ func (r *MongoUserRepository) CountUsers(ctx context.Context) (int, error) {
 // invalidateUserCache clears all user-related cache
 func (r *MongoUserRepository) invalidateUserCache() {
 	if err := r.cache.DeleteByPattern("user:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate user cache")
+		log.Debug().Err(err).Msg("Failed to invalidate user cache")
 	}
 
 	if err := r.cache.DeleteByPattern("users:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate users cache")
+		log.Debug().Err(err).Msg("Failed to invalidate users cache")
 	}
 }
 

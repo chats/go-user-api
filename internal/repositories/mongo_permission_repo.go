@@ -70,7 +70,7 @@ func (r *MongoPermissionRepository) GetByID(ctx context.Context, id uuid.UUID) (
 	var permission models.Permission
 	found, err := r.cache.Get(cacheKey, &permission)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get permission from cache")
+		log.Debug().Err(err).Msg("Failed to get permission from cache")
 	}
 
 	if found {
@@ -94,7 +94,7 @@ func (r *MongoPermissionRepository) GetByID(ctx context.Context, id uuid.UUID) (
 
 	// Cache the permission
 	if err := r.cache.Set(cacheKey, permission); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache permission")
+		log.Debug().Err(err).Msg("Failed to cache permission")
 	}
 
 	return &permission, nil
@@ -108,7 +108,7 @@ func (r *MongoPermissionRepository) GetByResourceAction(ctx context.Context, res
 	var permission models.Permission
 	found, err := r.cache.Get(cacheKey, &permission)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get permission from cache")
+		log.Debug().Err(err).Msg("Failed to get permission from cache")
 	}
 
 	if found {
@@ -132,7 +132,7 @@ func (r *MongoPermissionRepository) GetByResourceAction(ctx context.Context, res
 
 	// Cache the permission
 	if err := r.cache.Set(cacheKey, permission); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache permission")
+		log.Debug().Err(err).Msg("Failed to cache permission")
 	}
 
 	return &permission, nil
@@ -146,7 +146,7 @@ func (r *MongoPermissionRepository) GetAll(ctx context.Context) ([]*models.Permi
 	var permissions []*models.Permission
 	found, err := r.cache.Get(cacheKey, &permissions)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get permissions from cache")
+		log.Debug().Err(err).Msg("Failed to get permissions from cache")
 	}
 
 	if found {
@@ -175,7 +175,7 @@ func (r *MongoPermissionRepository) GetAll(ctx context.Context) ([]*models.Permi
 
 	// Cache the permissions
 	if err := r.cache.Set(cacheKey, permissions); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache permissions")
+		log.Debug().Err(err).Msg("Failed to cache permissions")
 	}
 
 	return permissions, nil
@@ -238,7 +238,7 @@ func (r *MongoPermissionRepository) GetByResource(ctx context.Context, resource 
 	var permissions []*models.Permission
 	found, err := r.cache.Get(cacheKey, &permissions)
 	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get permissions from cache")
+		log.Debug().Err(err).Msg("Failed to get permissions from cache")
 	}
 
 	if found {
@@ -267,7 +267,7 @@ func (r *MongoPermissionRepository) GetByResource(ctx context.Context, resource 
 
 	// Cache the permissions
 	if err := r.cache.Set(cacheKey, permissions); err != nil {
-		log.Warn().Err(err).Msg("Failed to cache permissions")
+		log.Debug().Err(err).Msg("Failed to cache permissions")
 	}
 
 	return permissions, nil
@@ -276,21 +276,21 @@ func (r *MongoPermissionRepository) GetByResource(ctx context.Context, resource 
 // invalidatePermissionCache clears all permission-related cache
 func (r *MongoPermissionRepository) invalidatePermissionCache() {
 	if err := r.cache.DeleteByPattern("permission:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate permission cache")
+		log.Debug().Err(err).Msg("Failed to invalidate permission cache")
 	}
 
 	if err := r.cache.DeleteByPattern("permissions:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate permissions cache")
+		log.Debug().Err(err).Msg("Failed to invalidate permissions cache")
 	}
 
 	// Also invalidate role cache since permissions might have changed
 	if err := r.cache.DeleteByPattern("role:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate role cache")
+		log.Debug().Err(err).Msg("Failed to invalidate role cache")
 	}
 
 	// Also invalidate user permission cache
 	if err := r.cache.DeleteByPattern("user:permissions:*"); err != nil {
-		log.Warn().Err(err).Msg("Failed to invalidate user permission cache")
+		log.Debug().Err(err).Msg("Failed to invalidate user permission cache")
 	}
 }
 
