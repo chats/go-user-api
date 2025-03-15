@@ -1,4 +1,4 @@
-package repositories
+package mongodb
 
 import (
 	"context"
@@ -7,48 +7,97 @@ import (
 
 	"github.com/chats/go-user-api/internal/database"
 	"github.com/chats/go-user-api/internal/models"
+	"github.com/chats/go-user-api/internal/repositories/transaction"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// MongoDBTxRepository provides transaction-based operations for MongoDB
-type MongoDBTxRepository struct {
-	db      *database.MongoDB
+// MongoTx wraps MongoDB session for transaction management
+type MongoTx struct {
 	session mongo.Session
 	ctx     mongo.SessionContext
 }
 
-// Ensure MongoDBTxRepository implements TxRepositoryInterface
-var _ TxRepositoryInterface = (*MongoDBTxRepository)(nil)
+// Commit implements the Executor interface
+func (tx *MongoTx) Commit() error {
+	return tx.ctx.CommitTransaction(tx.ctx)
+}
+
+// Rollback implements the Executor interface
+func (tx *MongoTx) Rollback() error {
+	return tx.ctx.AbortTransaction(tx.ctx)
+}
+
+// TxRepository implements transaction.Repository for MongoDB
+type TxRepository struct {
+	db  *database.MongoDB
+	ctx mongo.SessionContext
+}
+
+// Ensure TxRepository implements transaction.Repository
+var _ transaction.Repository = (*TxRepository)(nil)
 
 // usersCollection returns the MongoDB collection for users
-func (r *MongoDBTxRepository) usersCollection() *mongo.Collection {
+func (r *TxRepository) usersCollection() *mongo.Collection {
 	return r.db.GetCollection("users")
 }
 
 // userRolesCollection returns the MongoDB collection for user-roles relationship
-func (r *MongoDBTxRepository) userRolesCollection() *mongo.Collection {
+func (r *TxRepository) userRolesCollection() *mongo.Collection {
 	return r.db.GetCollection("user_roles")
 }
 
 // rolesCollection returns the MongoDB collection for roles
-func (r *MongoDBTxRepository) rolesCollection() *mongo.Collection {
+func (r *TxRepository) rolesCollection() *mongo.Collection {
 	return r.db.GetCollection("roles")
 }
 
 // permissionsCollection returns the MongoDB collection for permissions
-func (r *MongoDBTxRepository) permissionsCollection() *mongo.Collection {
+func (r *TxRepository) permissionsCollection() *mongo.Collection {
 	return r.db.GetCollection("permissions")
 }
 
 // rolePermissionsCollection returns the MongoDB collection for role-permissions relationship
-func (r *MongoDBTxRepository) rolePermissionsCollection() *mongo.Collection {
+func (r *TxRepository) rolePermissionsCollection() *mongo.Collection {
 	return r.db.GetCollection("role_permissions")
 }
 
+// NewTransactionManager creates a new transaction manager for MongoDB
+func NewTransactionManager(db *database.MongoDB) transaction.Manager[transaction.Repository] {
+	beginTx := func(ctx context.Context) (*MongoTx, error) {
+		session, err := db.Client.StartSession()
+		if err != nil {
+			return nil, fmt.Errorf("failed to start MongoDB session: %w", err)
+		}
+
+		sessCtx, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+			return sc, nil
+		})
+
+		if err != nil {
+			session.EndSession(ctx)
+			return nil, fmt.Errorf("failed to create transaction context: %w", err)
+		}
+
+		return &MongoTx{
+			session: session,
+			ctx:     sessCtx.(mongo.SessionContext),
+		}, nil
+	}
+
+	createRepo := func(tx *MongoTx) transaction.Repository {
+		return &TxRepository{
+			db:  db,
+			ctx: tx.ctx,
+		}
+	}
+
+	return transaction.NewGenericManager(beginTx, createRepo)
+}
+
 // CreateUser creates a new user within a transaction
-func (r *MongoDBTxRepository) CreateUser(ctx context.Context, user *models.User) error {
+func (r *TxRepository) CreateUser(ctx context.Context, user *models.User) error {
 	// Generate UUID if not provided
 	if user.ID == uuid.Nil {
 		user.ID = uuid.New()
@@ -73,7 +122,7 @@ func (r *MongoDBTxRepository) CreateUser(ctx context.Context, user *models.User)
 }
 
 // UpdateUser updates a user within a transaction
-func (r *MongoDBTxRepository) UpdateUser(ctx context.Context, user *models.User) error {
+func (r *TxRepository) UpdateUser(ctx context.Context, user *models.User) error {
 	user.UpdatedAt = time.Now()
 
 	filter := bson.M{"_id": user.ID}
@@ -101,7 +150,7 @@ func (r *MongoDBTxRepository) UpdateUser(ctx context.Context, user *models.User)
 }
 
 // UpdateUserPassword updates a user password within a transaction
-func (r *MongoDBTxRepository) UpdateUserPassword(ctx context.Context, userID uuid.UUID, hashedPassword string) error {
+func (r *TxRepository) UpdateUserPassword(ctx context.Context, userID uuid.UUID, hashedPassword string) error {
 	filter := bson.M{"_id": userID}
 	update := bson.M{
 		"$set": bson.M{
@@ -123,7 +172,7 @@ func (r *MongoDBTxRepository) UpdateUserPassword(ctx context.Context, userID uui
 }
 
 // AssignRolesToUser assigns roles to a user within a transaction
-func (r *MongoDBTxRepository) AssignRolesToUser(ctx context.Context, userID uuid.UUID, roleIDs []uuid.UUID) error {
+func (r *TxRepository) AssignRolesToUser(ctx context.Context, userID uuid.UUID, roleIDs []uuid.UUID) error {
 	// Remove existing roles
 	_, err := r.userRolesCollection().DeleteMany(r.ctx, bson.M{"user_id": userID})
 	if err != nil {
@@ -151,7 +200,7 @@ func (r *MongoDBTxRepository) AssignRolesToUser(ctx context.Context, userID uuid
 }
 
 // CreateRole creates a new role within a transaction
-func (r *MongoDBTxRepository) CreateRole(ctx context.Context, role *models.Role) error {
+func (r *TxRepository) CreateRole(ctx context.Context, role *models.Role) error {
 	// Generate UUID if not provided
 	if role.ID == uuid.Nil {
 		role.ID = uuid.New()
@@ -176,7 +225,7 @@ func (r *MongoDBTxRepository) CreateRole(ctx context.Context, role *models.Role)
 }
 
 // UpdateRole updates a role within a transaction
-func (r *MongoDBTxRepository) UpdateRole(ctx context.Context, role *models.Role) error {
+func (r *TxRepository) UpdateRole(ctx context.Context, role *models.Role) error {
 	role.UpdatedAt = time.Now()
 
 	filter := bson.M{"_id": role.ID}
@@ -201,7 +250,7 @@ func (r *MongoDBTxRepository) UpdateRole(ctx context.Context, role *models.Role)
 }
 
 // AssignPermissionsToRole assigns permissions to a role within a transaction
-func (r *MongoDBTxRepository) AssignPermissionsToRole(ctx context.Context, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
+func (r *TxRepository) AssignPermissionsToRole(ctx context.Context, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
 	// Remove existing permissions
 	_, err := r.rolePermissionsCollection().DeleteMany(r.ctx, bson.M{"role_id": roleID})
 	if err != nil {
@@ -229,7 +278,7 @@ func (r *MongoDBTxRepository) AssignPermissionsToRole(ctx context.Context, roleI
 }
 
 // CreatePermission creates a new permission within a transaction
-func (r *MongoDBTxRepository) CreatePermission(ctx context.Context, permission *models.Permission) error {
+func (r *TxRepository) CreatePermission(ctx context.Context, permission *models.Permission) error {
 	// Generate UUID if not provided
 	if permission.ID == uuid.Nil {
 		permission.ID = uuid.New()
@@ -254,7 +303,7 @@ func (r *MongoDBTxRepository) CreatePermission(ctx context.Context, permission *
 }
 
 // UpdatePermission updates a permission within a transaction
-func (r *MongoDBTxRepository) UpdatePermission(ctx context.Context, permission *models.Permission) error {
+func (r *TxRepository) UpdatePermission(ctx context.Context, permission *models.Permission) error {
 	permission.UpdatedAt = time.Now()
 
 	filter := bson.M{"_id": permission.ID}

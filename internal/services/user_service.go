@@ -7,6 +7,7 @@ import (
 
 	"github.com/chats/go-user-api/internal/models"
 	"github.com/chats/go-user-api/internal/repositories"
+	"github.com/chats/go-user-api/internal/repositories/transaction"
 	"github.com/chats/go-user-api/internal/utils"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -14,15 +15,21 @@ import (
 
 // UserService handles user-related operations
 type UserService struct {
-	userRepo repositories.UserRepositoryInterface
-	roleRepo repositories.RoleRepositoryInterface
+	userRepo  repositories.UserRepositoryInterface
+	roleRepo  repositories.RoleRepositoryInterface
+	txManager transaction.Manager[transaction.Repository]
 }
 
 // NewUserService creates a new user service
-func NewUserService(userRepo repositories.UserRepositoryInterface, roleRepo repositories.RoleRepositoryInterface) *UserService {
+func NewUserService(
+	userRepo repositories.UserRepositoryInterface,
+	roleRepo repositories.RoleRepositoryInterface,
+	txManager transaction.Manager[transaction.Repository],
+) *UserService {
 	return &UserService{
-		userRepo: userRepo,
-		roleRepo: roleRepo,
+		userRepo:  userRepo,
+		roleRepo:  roleRepo,
+		txManager: txManager,
 	}
 }
 
@@ -50,8 +57,8 @@ func (s *UserService) CreateUser(ctx context.Context, request models.UserCreateR
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Start transaction
-	err = s.userRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
+	// Execute transaction with the unified transaction manager
+	err = s.txManager.ExecuteTx(ctx, func(tx transaction.Repository) error {
 		// Save user to database
 		if err := tx.CreateUser(ctx, user); err != nil {
 			return fmt.Errorf("failed to create user: %w", err)
@@ -90,7 +97,6 @@ func (s *UserService) CreateUser(ctx context.Context, request models.UserCreateR
 		return &response, nil
 	}
 
-	// แก้ไขตรงนี้: สร้างตัวแปรก่อนแล้วค่อย return address ของตัวแปรนั้น
 	response := updatedUser.ToResponse()
 	return &response, nil
 }
@@ -200,13 +206,11 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, request models.
 	user.UpdatedAt = time.Now()
 
 	// Start transaction
-	err = s.userRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
+	err = s.txManager.ExecuteTx(ctx, func(tx transaction.Repository) error {
 		// Update user in database
 		if err := tx.UpdateUser(ctx, user); err != nil {
 			return fmt.Errorf("failed to update user: %w", err)
 		}
-
-		// Update password if provided
 		if request.Password != "" {
 			hashedPassword, err := utils.HashPassword(request.Password)
 			if err != nil {
@@ -217,8 +221,6 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, request models.
 				return fmt.Errorf("failed to update password: %w", err)
 			}
 		}
-
-		// Update roles if provided
 		if len(request.RoleIDs) > 0 {
 			roleIDs := make([]uuid.UUID, 0, len(request.RoleIDs))
 			for _, roleIDStr := range request.RoleIDs {
@@ -233,7 +235,6 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, request models.
 				return fmt.Errorf("failed to assign roles: %w", err)
 			}
 		}
-
 		return nil
 	})
 

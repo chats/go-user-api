@@ -1,24 +1,52 @@
-package repositories
+package postgres
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/chats/go-user-api/internal/database"
 	"github.com/chats/go-user-api/internal/models"
+	"github.com/chats/go-user-api/internal/repositories/transaction"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
-// PostgresqlTxRepository provides transaction-based operations
-type PostgresqlTxRepository struct {
+// PostgresTx implements transaction.Executor
+type PostgresTx struct {
 	tx *sqlx.Tx
 }
 
-// Ensure PostgresqlTxRepository implements TxRepositoryInterface
-var _ TxRepositoryInterface = (*PostgresqlTxRepository)(nil)
+func (t *PostgresTx) Commit() error {
+	return t.tx.Commit()
+}
+
+func (t *PostgresTx) Rollback() error {
+	return t.tx.Rollback()
+}
+
+// TxRepository implements transaction.Repository for PostgreSQL
+type TxRepository struct {
+	tx *sqlx.Tx
+}
+
+// Ensure TxRepository implements transaction.Repository
+var _ transaction.Repository = (*TxRepository)(nil)
+
+// NewTransactionManager creates a PostgreSQL transaction manager
+func NewTransactionManager(db *database.PostgresDB) transaction.Manager[transaction.Repository] {
+	beginTx := func(ctx context.Context) (*sqlx.Tx, error) {
+		return db.BeginTxx(ctx, nil)
+	}
+
+	createRepo := func(tx *sqlx.Tx) transaction.Repository {
+		return &TxRepository{tx: tx}
+	}
+
+	return transaction.NewGenericManager(beginTx, createRepo)
+}
 
 // CreateUser creates a new user within a transaction
-func (r *PostgresqlTxRepository) CreateUser(ctx context.Context, user *models.User) error {
+func (r *TxRepository) CreateUser(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (username, email, password, first_name, last_name, is_active, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -46,7 +74,7 @@ func (r *PostgresqlTxRepository) CreateUser(ctx context.Context, user *models.Us
 }
 
 // UpdateUser updates a user within a transaction
-func (r *PostgresqlTxRepository) UpdateUser(ctx context.Context, user *models.User) error {
+func (r *TxRepository) UpdateUser(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users
 		SET username = $1, email = $2, first_name = $3, last_name = $4, is_active = $5, updated_at = $6
@@ -73,7 +101,7 @@ func (r *PostgresqlTxRepository) UpdateUser(ctx context.Context, user *models.Us
 }
 
 // UpdateUserPassword updates a user password within a transaction
-func (r *PostgresqlTxRepository) UpdateUserPassword(ctx context.Context, userID uuid.UUID, hashedPassword string) error {
+func (r *TxRepository) UpdateUserPassword(ctx context.Context, userID uuid.UUID, hashedPassword string) error {
 	query := `
 		UPDATE users
 		SET password = $1, updated_at = NOW()
@@ -89,7 +117,7 @@ func (r *PostgresqlTxRepository) UpdateUserPassword(ctx context.Context, userID 
 }
 
 // AssignRolesToUser assigns roles to a user within a transaction
-func (r *PostgresqlTxRepository) AssignRolesToUser(ctx context.Context, userID uuid.UUID, roleIDs []uuid.UUID) error {
+func (r *TxRepository) AssignRolesToUser(ctx context.Context, userID uuid.UUID, roleIDs []uuid.UUID) error {
 	// Remove existing roles
 	_, err := r.tx.ExecContext(ctx, "DELETE FROM user_roles WHERE user_id = $1", userID)
 	if err != nil {
@@ -113,7 +141,7 @@ func (r *PostgresqlTxRepository) AssignRolesToUser(ctx context.Context, userID u
 }
 
 // CreateRole creates a new role within a transaction
-func (r *PostgresqlTxRepository) CreateRole(ctx context.Context, role *models.Role) error {
+func (r *TxRepository) CreateRole(ctx context.Context, role *models.Role) error {
 	query := `
 		INSERT INTO roles (name, description, created_at, updated_at)
 		VALUES ($1, $2, $3, $4)
@@ -137,7 +165,7 @@ func (r *PostgresqlTxRepository) CreateRole(ctx context.Context, role *models.Ro
 }
 
 // UpdateRole updates a role within a transaction
-func (r *PostgresqlTxRepository) UpdateRole(ctx context.Context, role *models.Role) error {
+func (r *TxRepository) UpdateRole(ctx context.Context, role *models.Role) error {
 	query := `
 		UPDATE roles
 		SET name = $1, description = $2, updated_at = $3
@@ -161,7 +189,7 @@ func (r *PostgresqlTxRepository) UpdateRole(ctx context.Context, role *models.Ro
 }
 
 // AssignPermissionsToRole assigns permissions to a role within a transaction
-func (r *PostgresqlTxRepository) AssignPermissionsToRole(ctx context.Context, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
+func (r *TxRepository) AssignPermissionsToRole(ctx context.Context, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
 	// Remove existing permissions
 	_, err := r.tx.ExecContext(ctx, "DELETE FROM role_permissions WHERE role_id = $1", roleID)
 	if err != nil {
@@ -185,7 +213,7 @@ func (r *PostgresqlTxRepository) AssignPermissionsToRole(ctx context.Context, ro
 }
 
 // CreatePermission creates a new permission within a transaction
-func (r *PostgresqlTxRepository) CreatePermission(ctx context.Context, permission *models.Permission) error {
+func (r *TxRepository) CreatePermission(ctx context.Context, permission *models.Permission) error {
 	query := `
 		INSERT INTO permissions (name, description, resource, action, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -211,7 +239,7 @@ func (r *PostgresqlTxRepository) CreatePermission(ctx context.Context, permissio
 }
 
 // UpdatePermission updates a permission within a transaction
-func (r *PostgresqlTxRepository) UpdatePermission(ctx context.Context, permission *models.Permission) error {
+func (r *TxRepository) UpdatePermission(ctx context.Context, permission *models.Permission) error {
 	query := `
 		UPDATE permissions
 		SET name = $1, description = $2, resource = $3, action = $4, updated_at = $5

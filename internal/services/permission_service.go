@@ -7,18 +7,24 @@ import (
 
 	"github.com/chats/go-user-api/internal/models"
 	"github.com/chats/go-user-api/internal/repositories"
+	"github.com/chats/go-user-api/internal/repositories/transaction"
 	"github.com/google/uuid"
 )
 
 // PermissionService handles permission-related operations
 type PermissionService struct {
 	permissionRepo repositories.PermissionRepositoryInterface
+	txManager      transaction.Manager[transaction.Repository]
 }
 
 // NewPermissionService creates a new permission service
-func NewPermissionService(permissionRepo repositories.PermissionRepositoryInterface) *PermissionService {
+func NewPermissionService(
+	permissionRepo repositories.PermissionRepositoryInterface,
+	txManager transaction.Manager[transaction.Repository],
+) *PermissionService {
 	return &PermissionService{
 		permissionRepo: permissionRepo,
+		txManager:      txManager,
 	}
 }
 
@@ -41,7 +47,7 @@ func (s *PermissionService) CreatePermission(ctx context.Context, request models
 	}
 
 	// Start transaction
-	err = s.permissionRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
+	err = s.txManager.ExecuteTx(ctx, func(tx transaction.Repository) error {
 		// Save permission to database
 		if err := tx.CreatePermission(ctx, permission); err != nil {
 			return fmt.Errorf("failed to create permission: %w", err)
@@ -161,7 +167,7 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, id string, req
 	permission.UpdatedAt = time.Now()
 
 	// Start transaction
-	err = s.permissionRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
+	err = s.txManager.ExecuteTx(ctx, func(tx transaction.Repository) error {
 		// Update permission in database
 		if err := tx.UpdatePermission(ctx, permission); err != nil {
 			return fmt.Errorf("failed to update permission: %w", err)

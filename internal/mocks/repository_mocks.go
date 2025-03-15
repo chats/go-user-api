@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/chats/go-user-api/internal/models"
-	"github.com/chats/go-user-api/internal/repositories"
+	"github.com/chats/go-user-api/internal/repositories/transaction"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
@@ -80,7 +80,7 @@ func (m *MockUserRepository) CountUsers(ctx context.Context) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockUserRepository) ExecuteTx(ctx context.Context, fn func(repositories.TxRepositoryInterface) error) error {
+func (m *MockUserRepository) ExecuteTx(ctx context.Context, fn func(transaction.Repository) error) error {
 	args := m.Called(ctx, fn)
 
 	// If no error and a function was provided, execute it with a mock transaction repository
@@ -143,7 +143,7 @@ func (m *MockRoleRepository) AssignPermissionsToRole(ctx context.Context, roleID
 	return args.Error(0)
 }
 
-func (m *MockRoleRepository) ExecuteTx(ctx context.Context, fn func(repositories.TxRepositoryInterface) error) error {
+func (m *MockRoleRepository) ExecuteTx(ctx context.Context, fn func(transaction.Repository) error) error {
 	args := m.Called(ctx, fn)
 
 	// If no error and a function was provided, execute it with a mock transaction repository
@@ -201,7 +201,7 @@ func (m *MockPermissionRepository) Delete(ctx context.Context, id uuid.UUID) err
 	return args.Error(0)
 }
 
-func (m *MockPermissionRepository) ExecuteTx(ctx context.Context, fn func(repositories.TxRepositoryInterface) error) error {
+func (m *MockPermissionRepository) ExecuteTx(ctx context.Context, fn func(transaction.Repository) error) error {
 	args := m.Called(ctx, fn)
 
 	// If no error and a function was provided, execute it with a mock transaction repository

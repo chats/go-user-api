@@ -20,6 +20,9 @@ import (
 	"github.com/chats/go-user-api/internal/database"
 	"github.com/chats/go-user-api/internal/logger"
 	"github.com/chats/go-user-api/internal/repositories"
+	"github.com/chats/go-user-api/internal/repositories/mongodb"
+	"github.com/chats/go-user-api/internal/repositories/postgres"
+	"github.com/chats/go-user-api/internal/repositories/transaction"
 	"github.com/chats/go-user-api/internal/services"
 	"github.com/chats/go-user-api/internal/tracing"
 	"github.com/gofiber/contrib/fiberzerolog"
@@ -98,6 +101,25 @@ func redisConnect(cfg *config.Config) (*cache.RedisClient, error) {
 	return redisClient, err
 }
 
+func createTxManager(cfg *config.Config, db database.Database) (transaction.Manager[transaction.Repository], error) {
+	switch cfg.DBType {
+	case "postgres":
+		postgresDB, ok := db.GetImplementation().(*database.PostgresDB)
+		if !ok {
+			return nil, fmt.Errorf("failed to cast database implementation to PostgresDB")
+		}
+		return postgres.NewTransactionManager(postgresDB), nil
+	case "mongodb":
+		mongoDB, ok := db.GetImplementation().(*database.MongoDB)
+		if !ok {
+			return nil, fmt.Errorf("failed to cast database implementation to MongoDB")
+		}
+		return mongodb.NewTransactionManager(mongoDB), nil
+	default:
+		return nil, fmt.Errorf("unsupported database type: %s", cfg.DBType)
+	}
+}
+
 func main() {
 	// Set up context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
@@ -169,11 +191,13 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to create permission repository")
 	}
 
+	txManager, _ := createTxManager(cfg, db)
+
 	// Initialize services
 	authService := services.NewAuthService(userRepo, cfg)
-	userService := services.NewUserService(userRepo, roleRepo)
-	roleService := services.NewRoleService(roleRepo, permissionRepo)
-	permissionService := services.NewPermissionService(permissionRepo)
+	userService := services.NewUserService(userRepo, roleRepo, txManager)
+	roleService := services.NewRoleService(roleRepo, permissionRepo, txManager)
+	permissionService := services.NewPermissionService(permissionRepo, txManager)
 
 	// Initialize HTTP handlers
 	authHandler := handlers.NewAuthHandler(authService, userService, tracer)

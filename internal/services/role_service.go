@@ -7,6 +7,7 @@ import (
 
 	"github.com/chats/go-user-api/internal/models"
 	"github.com/chats/go-user-api/internal/repositories"
+	"github.com/chats/go-user-api/internal/repositories/transaction"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
@@ -15,16 +16,19 @@ import (
 type RoleService struct {
 	roleRepo       repositories.RoleRepositoryInterface
 	permissionRepo repositories.PermissionRepositoryInterface
+	txManager      transaction.Manager[transaction.Repository]
 }
 
 // NewRoleService creates a new role service
 func NewRoleService(
 	roleRepo repositories.RoleRepositoryInterface,
 	permissionRepo repositories.PermissionRepositoryInterface,
+	txManager transaction.Manager[transaction.Repository],
 ) *RoleService {
 	return &RoleService{
 		roleRepo:       roleRepo,
 		permissionRepo: permissionRepo,
+		txManager:      txManager,
 	}
 }
 
@@ -45,7 +49,7 @@ func (s *RoleService) CreateRole(ctx context.Context, request models.RoleCreateR
 	}
 
 	// Start transaction
-	err = s.roleRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
+	err = s.txManager.ExecuteTx(ctx, func(tx transaction.Repository) error {
 		// Save role to database
 		if err := tx.CreateRole(ctx, role); err != nil {
 			return fmt.Errorf("failed to create role: %w", err)
@@ -157,7 +161,7 @@ func (s *RoleService) UpdateRole(ctx context.Context, id string, request models.
 	role.UpdatedAt = time.Now()
 
 	// Start transaction
-	err = s.roleRepo.ExecuteTx(ctx, func(tx repositories.TxRepositoryInterface) error {
+	err = s.txManager.ExecuteTx(ctx, func(tx transaction.Repository) error {
 		// Update role in database
 		if err := tx.UpdateRole(ctx, role); err != nil {
 			return fmt.Errorf("failed to update role: %w", err)

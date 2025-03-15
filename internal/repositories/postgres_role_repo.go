@@ -346,29 +346,3 @@ func (r *RoleRepository) invalidateUserPermissionCache() {
 		log.Debug().Err(err).Msg("Failed to invalidate user permission cache")
 	}
 }
-
-// ExecuteTx executes a function within a transaction
-func (r *RoleRepository) ExecuteTx(ctx context.Context, fn func(TxRepositoryInterface) error) error {
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	txRepo := &PostgresqlTxRepository{tx: tx}
-	err = fn(txRepo)
-	if err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return fmt.Errorf("tx failed: %v, unable to rollback: %v", err, rbErr)
-		}
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	// Clear caches after successful transaction
-	r.invalidateRoleCache()
-
-	return nil
-}
